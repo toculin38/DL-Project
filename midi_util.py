@@ -12,10 +12,12 @@ def parse_midi(path, save_path=None):
         print("Parsing %s" % midi_path)
         notes_to_parse = None
 
-        try: # file has instrument parts
+        try: 
+            # file has instrument parts
             s2 = instrument.partitionByInstrument(midi)
             notes_to_parse = s2.parts[0].recurse() 
-        except: # file has notes in a flat structure
+        except: 
+            # file has notes in a flat structure
             notes_to_parse = midi.flat.notes
 
         for element in notes_to_parse:
@@ -28,4 +30,11 @@ def parse_midi(path, save_path=None):
         with open(save_path, 'wb') as file:
             pickle.dump(notes, file)
 
+    return notes
+
+def load_notes(path):
+
+    with open(path, 'rb') as file:
+        notes = pickle.load(file)
+    
     return notes
