@@ -3,13 +3,13 @@ import pickle
 import numpy
 from music21 import converter, instrument, note, chord
 
-def parse_midi(path):
+def parse_midi(path, save_path=None):
     """ Get all the notes and chords from the midi files in the ./midi_songs directory """
     notes = []
 
-    for file in glob.glob(path):
-        midi = converter.parse(file)
-        print("Parsing %s" % file)
+    for midi_path in glob.glob(path):
+        midi = converter.parse(midi_path)
+        print("Parsing %s" % midi_path)
         notes_to_parse = None
 
         try: # file has instrument parts
@@ -24,12 +24,8 @@ def parse_midi(path):
             elif isinstance(element, chord.Chord):
                 notes.append('.'.join(str(n) for n in element.normalOrder))
 
+    if save_path:
+        with open(save_path, 'wb') as file:
+            pickle.dump(notes, file)
+
     return notes
-
-if __name__ == '__main__':
-
-    midi_path = "midi_songs/*.mid"
-    notes = parse_midi(midi_path)
-
-    with open('midi_input/notes', 'wb') as filepath:
-        pickle.dump(notes, filepath)
