@@ -55,8 +55,8 @@ if __name__ == '__main__':
     # network_output.shape: (sequnce_numbers, one-hot vector's length)
 
     # create model with/without weights file
-    # weights_path = "weights/weights-improvement-01-4.7159-bigger.hdf5"
-    model = network.create(network_input, n_vocab)
+    weights_path = "weights/weights-improvement-61-1.0923-bigger.hdf5"
+    model = network.create(network_input, n_vocab, weights_path=weights_path)
 
     network.train(model, network_input, network_output)
 

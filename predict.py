@@ -29,7 +29,7 @@ def generate():
 
     network_input, normalized_input, n_vocab, pitchnames = prepare_sequences(data)
 
-    model = network.create(normalized_input, n_vocab, weights_path="weights/target_weight.hdf5")
+    model = network.create(normalized_input, n_vocab, weights_path="weights/weights-improvement-60-1.1242-bigger.hdf5")
 
     prediction_output = generate_notes(model, network_input, pitchnames, n_vocab)
     create_midi(prediction_output)
@@ -44,7 +44,7 @@ def prepare_sequences(data):
 
     # create a dictionary to map pitches to integers
     note_to_int = dict((note, number) for number, note in enumerate(pitchnames))
-    
+
     network_input = []
 
     for notes in data:

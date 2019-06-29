@@ -44,8 +44,7 @@ def get_notes():
 
     return notes
 
-if __name__ == '__main__':
-
+def make_a_song():
     ts = meter.TimeSignature('6/8')
     mm1 = tempo.MetronomeMark(number=64.5)
     a = stream.Stream()
@@ -82,5 +81,53 @@ if __name__ == '__main__':
     stream_player = midi.realtime.StreamPlayer(a)
     stream_player.play()
 
-    get_notes()
+def analysis_test():
+    midi_file = converter.parse("midi_songs/Kingdom_Hearts_Dearly_Beloved.mid", format='singleBeat')
+    # midi_file = instrument.partitionByInstrument(midi_file)
+    print(len(midi_file.parts))
+    print(midi_file.parts[0].getInstrument())
+    print(midi_file.parts[1].getInstrument())
+    # midi_file.show("text")
+
+    new_stream = stream.Stream()
+
+    for element in midi_file.parts[0].flat:
+        if isinstance(element, note.Note):
+            # if element.offset % 0.25 == 0:
+            print(element.pitch, element.duration)
+        elif isinstance(element, chord.Chord):
+            # if element.offset % 0.25 == 0:
+            print(element.pitchNames, element.duration)
+        elif isinstance(element, note.Rest):
+            # if element.offset % 0.25 == 0:
+            print("rest", element.duration)
+        else:
+            print(element)
+
+
+
+    # elements = new_song.measures(0, None)
+    # measures = elements.getElementsByClass('Measure')
+    
+    # for measure in measures:
+    #     print(measure)
+    #     for n in measure.flat.notes:
+    #         print("Note:{} Beat:{}".format(n, n.duration))
+
+    stream_player = midi.realtime.StreamPlayer(new_stream)
+    stream_player.play()
+
+    # midi_stream = stream.Stream(new_song)
+    # midi_stream.write('midi', fp='test.mid')
+
+if __name__ == '__main__':
+    analysis_test()
+
+    # print(midi_file.parts[0].show("text"))
+    # print(midi_file.parts[0].getInstrument())
+    # for part in s2.parts:
+    #     part_instroment = part.getInstrument()
+    #     if isinstance(part_instroment, instrument.Piano):
+    #         part.show("text")
+    # get_notes()
 
