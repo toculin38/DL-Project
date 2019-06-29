@@ -2,6 +2,8 @@ import glob
 import pickle
 from music21 import *
 
+import midi_util
+
 def get_notes():
     """ Get all the notes and chords from the midi files in the ./midi_songs directory """
     notes = []
@@ -82,16 +84,15 @@ def make_a_song():
     stream_player.play()
 
 def analysis_test():
-    midi_file = converter.parse("midi_songs/Kingdom_Hearts_Dearly_Beloved.mid", format='singleBeat')
-    # midi_file = instrument.partitionByInstrument(midi_file)
+    midi_file = converter.parse("MyOwnDataset/Arriettys_Song_The_Secret_World_of_Arrietty.mid")
+    midi_file = midi_util.to_c_major(midi_file)
+
     print(len(midi_file.parts))
     print(midi_file.parts[0].getInstrument())
     print(midi_file.parts[1].getInstrument())
+
     # midi_file.show("text")
-
-    new_stream = stream.Stream()
-
-    for element in midi_file.parts[0].flat:
+    for element in midi_file.parts[0].recurse():
         if isinstance(element, note.Note):
             # if element.offset % 0.25 == 0:
             print(element.pitch, element.duration)
@@ -102,8 +103,9 @@ def analysis_test():
             # if element.offset % 0.25 == 0:
             print("rest", element.duration)
         else:
-            print(element)
+            print(type(element))
 
+    stream_player = midi.realtime.StreamPlayer(midi_file).play()
 
 
     # elements = new_song.measures(0, None)
@@ -114,11 +116,10 @@ def analysis_test():
     #     for n in measure.flat.notes:
     #         print("Note:{} Beat:{}".format(n, n.duration))
 
-    stream_player = midi.realtime.StreamPlayer(new_stream)
-    stream_player.play()
 
-    # midi_stream = stream.Stream(new_song)
-    # midi_stream.write('midi', fp='test.mid')
+
+    midi_stream = stream.Stream(midi_file.parts[0])
+    midi_stream.write('midi', fp='test.mid')
 
 if __name__ == '__main__':
     analysis_test()

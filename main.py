@@ -14,6 +14,9 @@ def prepare_sequences(data):
     # get all pitch names
     pitchnames = sorted(set([note for notes in data for note in notes]))
     n_vocab = len(pitchnames)
+    
+    print(pitchnames)
+    print(n_vocab)
 
     # create a dictionary to map pitches to integers
     note_to_int = dict((note, number) for number, note in enumerate(pitchnames))
@@ -44,10 +47,7 @@ if __name__ == '__main__':
     midi_path = "midi_songs/*.mid"
     data_path = "midi_input/data"
 
-    if glob.glob(data_path):
-        data = midi_util.load_data(data_path)
-    else:
-        data = midi_util.parse_midi(midi_path, data_path)
+    data = midi_util.parse_midi(midi_path, data_path)
 
     network_input, network_output, n_vocab = prepare_sequences(data)
 
@@ -55,8 +55,8 @@ if __name__ == '__main__':
     # network_output.shape: (sequnce_numbers, one-hot vector's length)
 
     # create model with/without weights file
-    weights_path = "weights/weights-improvement-61-1.0923-bigger.hdf5"
-    model = network.create(network_input, n_vocab, weights_path=weights_path)
+    # weights_path = "weights/weights-improvement-61-1.0923-bigger.hdf5"
+    model = network.create(network_input, n_vocab, weights_path=None)
 
     network.train(model, network_input, network_output)
 

@@ -1,24 +1,25 @@
 import glob
 import pickle
 import numpy
-from music21 import converter, instrument, note, chord
+import music21
+from music21 import converter, instrument, note, chord, interval, pitch
 
 def parse_midi(path, save_path=None):
     """ Get all the notes and chords from the midi files in the ./midi_songs directory """
     data = []
 
     for midi_path in glob.glob(path):
-        midi = converter.parse(midi_path)
-        print("Parsing %s" % midi_path)
+        midi_file = converter.parse(midi_path)
+        midi_file = to_c_major(midi_file)
         notes_to_parse = None
 
         try: 
             # file has instrument parts
-            s2 = instrument.partitionByInstrument(midi)
+            s2 = instrument.partitionByInstrument(midi_file)
             notes_to_parse = s2.parts[0].recurse() 
         except: 
             # file has notes in a flat structure
-            notes_to_parse = midi.flat.notes
+            notes_to_parse = midi_file.flat.notes
 
         notes = []
 
@@ -26,7 +27,8 @@ def parse_midi(path, save_path=None):
             if isinstance(element, note.Note):
                 notes.append(str(element.pitch))
             elif isinstance(element, chord.Chord):
-                notes.append('.'.join(str(n) for n in element.normalOrder))
+                element = element.sortDiatonicAscending()
+                notes.append(str(element.pitches[-1]))
 
         data.append(notes)
 
@@ -35,6 +37,13 @@ def parse_midi(path, save_path=None):
             pickle.dump(data, file)
 
     return data
+
+def to_c_major(midi_file):
+    midi_scale = midi_file.analyze('key').getScale('major')
+    interv = interval.Interval(midi_scale.tonic, pitch.Pitch('C'))
+    midi_file = midi_file.transpose(interv)
+    return midi_file
+
 
 def load_data(path):
 
