@@ -9,10 +9,12 @@ from keras.callbacks import ModelCheckpoint
 
 def create(network_input, n_vocab, weights_path=None):
     """ create the structure of the neural network """
+    input_shape = (network_input.shape[1], network_input.shape[2])
+
     model = Sequential()
     model.add(LSTM(
         512,
-        input_shape=(network_input.shape[1], network_input.shape[2]),
+        input_shape=input_shape,
         return_sequences=True
     ))
     model.add(Dropout(0.3))
