@@ -107,22 +107,47 @@ def analysis_test():
 
     stream_player = midi.realtime.StreamPlayer(midi_file).play()
 
-
-    # elements = new_song.measures(0, None)
-    # measures = elements.getElementsByClass('Measure')
-    
-    # for measure in measures:
-    #     print(measure)
-    #     for n in measure.flat.notes:
-    #         print("Note:{} Beat:{}".format(n, n.duration))
-
-
-
     midi_stream = stream.Stream(midi_file.parts[0])
     midi_stream.write('midi', fp='test.mid')
 
+def analysis_by_measures():
+    midi_file = converter.parse("MyOwnDataset/Vague_Hope__Cold_Rain_NieRAutomata.mid")
+    
+    pitchesTable = [pitch.Pitch(ps) for ps in range(17, 88)]
+    print(len(pitchesTable))
+
+    melody = midi_file.parts[0]
+    accomp = midi_file.parts[1]
+
+    for measure in melody.measures(0, None, collect="Measure"):
+        print(measure)
+        notes_to_parse = measure.recurse().notesAndRests
+        offsetIter = stream.iterator.OffsetIterator(notes_to_parse)
+        for elementGroup in offsetIter:
+            element = elementGroup[0]
+            
+            if isinstance(element, note.Rest):
+                ps = 0
+            elif isinstance(element, note.Note):
+                ps = element.pitch.ps
+            elif isinstance(element, chord.Chord):
+                ps = element.pitches[0].ps
+
+            print("offset:{} pitch space:{} duarion:{}".format(element.offset, ps, element.duration.quarterLength))
+
+
+    # print(type(midi_file.parts[0]))
+
+    # cr = analysis.reduceChords.ChordReducer()
+    # cws = cr.computeMeasureChordWeights()
+    # for pcs in sorted(cws):
+    #     print("%18r  %2.1f" % (pcs, cws[pcs]))
+
+    stream_player = midi.realtime.StreamPlayer(midi_file)
+    stream_player.play()
+
 if __name__ == '__main__':
-    analysis_test()
+    analysis_by_measures()
 
     # print(midi_file.parts[0].show("text"))
     # print(midi_file.parts[0].getInstrument())

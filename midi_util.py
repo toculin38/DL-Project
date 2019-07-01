@@ -15,8 +15,8 @@ def parse_midi(path, save_path=None):
 
         try: 
             # file has instrument parts
-            s2 = instrument.partitionByInstrument(midi_file)
-            notes_to_parse = s2.parts[0].recurse() 
+            # s2 = instrument.partitionByInstrument(midi_file)
+            notes_to_parse = midi_file.parts[0].recurse() 
         except: 
             # file has notes in a flat structure
             notes_to_parse = midi_file.flat.notes
@@ -25,10 +25,10 @@ def parse_midi(path, save_path=None):
 
         for element in notes_to_parse:
             if isinstance(element, note.Note):
-                notes.append(str(element.pitch))
+                notes.append(element.pitch.ps)
             elif isinstance(element, chord.Chord):
                 element = element.sortDiatonicAscending()
-                notes.append(str(element.pitches[-1]))
+                notes.append(element.pitches[-1].ps)
 
         data.append(notes)
 

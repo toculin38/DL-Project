@@ -12,14 +12,14 @@ def prepare_sequences(data):
     sequence_length = 64
 
     # get all pitch names
-    pitchnames = sorted(set([note for notes in data for note in notes]))
-    n_vocab = len(pitchnames)
+    pitches = sorted(set([note for notes in data for note in notes]))
+    n_vocab = len(pitches)
     
-    print(pitchnames)
+    print(pitches)
     print(n_vocab)
 
     # create a dictionary to map pitches to integers
-    note_to_int = dict((note, number) for number, note in enumerate(pitchnames))
+    note_to_int = dict((pitch, number) for number, pitch in enumerate(pitches))
 
     network_input = []
     network_output = []
@@ -29,7 +29,7 @@ def prepare_sequences(data):
         for i in range(0, len(notes) - sequence_length, 1):
             sequence_in = notes[i:i + sequence_length]
             sequence_out = notes[i + sequence_length]
-            network_input.append([note_to_int[char] for char in sequence_in])
+            network_input.append([note_to_int[pitch] for pitch in sequence_in])
             network_output.append(note_to_int[sequence_out])
 
     # reshape the input into a format compatible with LSTM layers

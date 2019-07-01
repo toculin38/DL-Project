@@ -29,7 +29,7 @@ def generate():
 
     network_input, normalized_input, n_vocab, pitchnames = prepare_sequences(data)
 
-    model = network.create(normalized_input, n_vocab, weights_path="weights/weights-improvement-156-0.1080-bigger.hdf5")
+    model = network.create(normalized_input, n_vocab, weights_path="weights/weights-improvement-151-0.1093-bigger.hdf5")
 
     prediction_output = generate_notes(model, network_input, pitchnames, n_vocab)
     create_midi(prediction_output)
@@ -39,18 +39,18 @@ def prepare_sequences(data):
     sequence_length = 64
 
     # Get all pitch names
-    pitchnames = sorted(set([note for notes in data for note in notes]))
-    n_vocab = len(pitchnames)
+    pitches = sorted(set([note for notes in data for note in notes]))
+    n_vocab = len(pitches)
 
     # create a dictionary to map pitches to integers
-    note_to_int = dict((note, number) for number, note in enumerate(pitchnames))
+    note_to_int = dict((pitch, number) for number, pitch in enumerate(pitches))
 
     network_input = []
 
     for notes in data:
         for i in range(0, len(notes) - sequence_length, 1):
             sequence_in = notes[i:i + sequence_length]
-            network_input.append([note_to_int[char] for char in sequence_in])
+            network_input.append([note_to_int[pitch] for pitch in sequence_in])
 
     n_patterns = len(network_input)
 
@@ -59,14 +59,14 @@ def prepare_sequences(data):
     # normalize input
     normalized_input = normalized_input / float(n_vocab)
 
-    return (network_input, normalized_input, n_vocab, pitchnames)
+    return (network_input, normalized_input, n_vocab, pitches)
 
-def generate_notes(model, network_input, pitchnames, n_vocab):
+def generate_notes(model, network_input, pitches, n_vocab):
     """ Generate notes from the neural network based on a sequence of notes """
     # pick a random sequence from the input as a starting point for the prediction
     start = numpy.random.randint(0, len(network_input)-1)
 
-    int_to_note = dict((number, note) for number, note in enumerate(pitchnames))
+    int_to_note = dict((number, note) for number, note in enumerate(pitches))
 
     pattern = network_input[start]
     prediction_output = []
