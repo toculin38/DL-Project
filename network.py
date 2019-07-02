@@ -7,7 +7,8 @@ from keras.layers import Activation
 from keras.callbacks import ModelCheckpoint
 
 
-def create(network_input, n_vocab, weights_path=None):
+def create(network_input, output_length, weights_path=None):
+
     """ create the structure of the neural network """
     input_shape = (network_input.shape[1], network_input.shape[2])
 
@@ -23,7 +24,7 @@ def create(network_input, n_vocab, weights_path=None):
     model.add(LSTM(512))
     model.add(Dense(256))
     model.add(Dropout(0.3))
-    model.add(Dense(n_vocab))
+    model.add(Dense(output_length))
     model.add(Activation('softmax'))
     model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
 

@@ -111,20 +111,22 @@ def analysis_test():
     midi_stream.write('midi', fp='test.mid')
 
 def analysis_by_measures():
-    midi_file = converter.parse("MyOwnDataset/Vague_Hope__Cold_Rain_NieRAutomata.mid")
+    midi_file = converter.parse("midi_songs/balamb.mid")
     
-    pitchesTable = [pitch.Pitch(ps) for ps in range(17, 88)]
-    print(len(pitchesTable))
-
+    # pitchesTable = [pitch.Pitch(ps) for ps in range(17, 88)]
+    # print(len(pitchesTable))
+    
     melody = midi_file.parts[0]
-    accomp = midi_file.parts[1]
+    # accomp = midi_file.parts[1]
 
     for measure in melody.measures(0, None, collect="Measure"):
         print(measure)
+
         notes_to_parse = measure.recurse().notesAndRests
-        offsetIter = stream.iterator.OffsetIterator(notes_to_parse)
-        for elementGroup in offsetIter:
-            element = elementGroup[0]
+        offset_iter = stream.iterator.OffsetIterator(notes_to_parse)
+
+        for element_group in offset_iter:
+            element = element_group[0]
             
             if isinstance(element, note.Rest):
                 ps = 0
@@ -147,13 +149,11 @@ def analysis_by_measures():
     stream_player.play()
 
 if __name__ == '__main__':
-    analysis_by_measures()
+    # analysis_by_measures()
+    print(pitch.Pitch('A1').ps)
+    print(pitch.Pitch('C7').ps)
+    # midi_path = "midi_songs/*.mid"
+    # data_path = "midi_input/data"
+    # data = midi_util.parse_midi(midi_path, data_path)
 
-    # print(midi_file.parts[0].show("text"))
-    # print(midi_file.parts[0].getInstrument())
-    # for part in s2.parts:
-    #     part_instroment = part.getInstrument()
-    #     if isinstance(part_instroment, instrument.Piano):
-    #         part.show("text")
-    # get_notes()
 
