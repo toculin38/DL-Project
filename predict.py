@@ -2,7 +2,7 @@
     trained neural network """
 import pickle
 import glob
-import numpy
+import numpy as np
 
 from music21 import instrument, note, stream, chord
 from keras.models import Sequential
@@ -29,7 +29,7 @@ def generate():
 
     network_input, normalized_input, n_vocab, pitchnames = prepare_sequences(data)
 
-    model = network.create(normalized_input, n_vocab, weights_path="weights/weights-improvement-106-0.3000-bigger.hdf5")
+    model = network.create(normalized_input, n_vocab, weights_path="weights/weights-improvement-227-0.0373-bigger.hdf5")
 
     prediction_output = generate_notes(model, network_input, pitchnames, n_vocab)
     create_midi(prediction_output)
@@ -37,8 +37,9 @@ def generate():
 def prepare_sequences(data):
     """ Prepare the sequences used by the Neural Network """
     sequence_length = 32
-
-    # Get all pitch names
+    duration_min = midi_util.DurationMin
+    duration_max = midi_util.DurationMax
+    # get all pitch names
     pitches = midi_util.PitchTable
     n_vocab = len(pitches)
 
@@ -46,28 +47,29 @@ def prepare_sequences(data):
     print(n_vocab)
 
     # create a dictionary to map pitches to integers
-    note_to_int = dict((pitch, number) for number, pitch in enumerate(pitches))
+    ps_to_int = dict((pitch, number) for number, pitch in enumerate(pitches))
 
     network_input = []
 
     for notes in data:
         for i in range(0, len(notes) - sequence_length, 1):
             sequence_in = notes[i:i + sequence_length]
-            network_input.append([note_to_int[pitch] for pitch in sequence_in])
+            network_input.append([np.array([ps_to_int[note[0]], (note[1] // duration_min - 1)]) for note in sequence_in])
 
     n_patterns = len(network_input)
 
     # reshape the input into a format compatible with LSTM layers
-    normalized_input = numpy.reshape(network_input, (n_patterns, sequence_length, 1))
+    normalized_input = np.reshape(network_input, (n_patterns, sequence_length, 2))
     # normalize input
-    normalized_input = normalized_input / float(n_vocab)
+    normalized_input[:,:,0] = normalized_input[:,:,0] / float(n_vocab)
+    normalized_input[:,:,1] = normalized_input[:,:,1] / float(duration_max // duration_min)
 
     return (network_input, normalized_input, n_vocab, pitches)
 
 def generate_notes(model, network_input, pitches, n_vocab):
     """ Generate notes from the neural network based on a sequence of notes """
     # pick a random sequence from the input as a starting point for the prediction
-    start = numpy.random.randint(0, len(network_input)-1)
+    start = np.random.randint(0, len(network_input)-1)
 
     int_to_ps = dict((number, note) for number, note in enumerate(pitches))
 
@@ -76,16 +78,16 @@ def generate_notes(model, network_input, pitches, n_vocab):
 
     # generate 500 notes
     for note_index in range(500):
-        prediction_input = numpy.reshape(pattern, (1, len(pattern), 1))
+        prediction_input = np.reshape(pattern, (1, len(pattern), 2))
         prediction_input = prediction_input / float(n_vocab)
 
         prediction = model.predict(prediction_input, verbose=0)
 
-        index = numpy.argmax(prediction)
+        index = np.argmax(prediction)
         result = int_to_ps[index]
         prediction_output.append(result)
 
-        pattern.append(index)
+        pattern.append(np.array([index, 0.5]))
         pattern = pattern[1:len(pattern)]
 
     return prediction_output
