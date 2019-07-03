@@ -14,10 +14,11 @@ def prepare_sequences(data):
     duration_max = midi_util.DurationMax
     # get all pitch names
     pitches = midi_util.PitchTable
-    n_vocab = len(pitches)
-    
+    pitch_size = len(pitches)
+    duration_size = int(duration_max // duration_min)
+
     print(pitches)
-    print(n_vocab)
+    print(pitch_size)
 
     # create a dictionary to map pitches to integers
     ps_to_int = dict((pitch, number) for number, pitch in enumerate(pitches))
@@ -41,19 +42,19 @@ def prepare_sequences(data):
     network_output = np.reshape(network_output, (n_patterns, 2))
 
     # normalize input
-    network_input[:,:,0] = network_input[:,:,0] / float(n_vocab)
-    network_input[:,:,1] = network_input[:,:,1] / float(duration_max // duration_min)
+    network_input[:,:,0] = network_input[:,:,0] / float(pitch_size)
+    network_input[:,:,1] = network_input[:,:,1] / float(duration_size)
 
-    output_ps = np_utils.to_categorical(network_output[:,0],  num_classes=n_vocab)
-    # output_dt = np_utils.to_categorical(network_output[:,1],  num_classes=int(duration_max // duration_min))
+    output_ps = np_utils.to_categorical(network_output[:,0],  num_classes=pitch_size)
+    output_dt = np_utils.to_categorical(network_output[:,1],  num_classes=duration_size)
 
     # network_output = np.concatenate((output_ps, output_dt), axis=1)
-    network_output = output_ps
-    return (network_input, network_output, n_vocab)
+    network_output = [output_ps, output_dt]
+    return (network_input, network_output, pitch_size, duration_size)
 
 if __name__ == '__main__':
     # parse midi songs to notes file
-    midi_path = "myown/*.mid"
+    midi_path = "midi_songs/*.mid"
     data_path = "midi_input/data"
 
     if glob.glob(data_path):
@@ -61,11 +62,10 @@ if __name__ == '__main__':
     else:
         data = midi_util.parse_midi(midi_path, data_path)
 
-    network_input, network_output, n_vocab = prepare_sequences(data)
+    network_input, network_output, pitch_size, duration_size = prepare_sequences(data)
 
-    output_length = network_output.shape[1]
     # create model with/without weights file
-    model = network.create(network_input, output_length, weights_path=None)
+    model = network.create(network_input, pitch_size, duration_size, weights_path="weights/weights-improvement-19-0.1743-bigger.hdf5")
 
     network.train(model, network_input, network_output)
 

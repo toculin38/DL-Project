@@ -6,7 +6,7 @@ from music21 import converter, instrument, note, chord, interval, pitch, stream
 
 PitchMin = 33 #A1
 PitchMax = 96 #C7
-DurationMin = 0.25
+DurationMin = 0.5
 DurationMax = 4.0
 PitchTable = [0.0]
 PitchTable.extend([float(x) for x in range(PitchMin, PitchMax + 1)])
@@ -40,18 +40,23 @@ def parse_midi(path, save_path=None):
             offset_iter = stream.iterator.OffsetIterator(notes_to_parse)
             for element_group in offset_iter:
                 element = element_group[0]
+
+                dt = element.duration.quarterLength
+
+                if dt < DurationMin or dt > DurationMax:
+                    continue
+
+                dt = round_duration(dt, DurationMin) 
+
                 if isinstance(element, note.Rest):
-                    dt = clamp_duration(element.duration.quarterLength, DurationMin, DurationMax) 
-                    notes.append([0, dt])
+                    ps = 0
                 elif isinstance(element, note.Note):
                     ps = clamp_pitch(element.pitch.ps, PitchMin, PitchMax)
-                    dt = clamp_duration(element.duration.quarterLength, DurationMin, DurationMax) 
-                    notes.append([ps, dt])
                 elif isinstance(element, chord.Chord):
                     element = element.sortDiatonicAscending()
                     ps = clamp_pitch(element.pitches[-1].ps, PitchMin, PitchMax)
-                    dt = clamp_duration(element.duration.quarterLength, DurationMin, DurationMax) 
-                    notes.append([ps, dt])
+
+                notes.append([ps, dt])
 
         data.append(notes)
 
@@ -67,7 +72,6 @@ def to_c_major(midi_file):
     midi_file = midi_file.transpose(interv)
     return midi_file
 
-
 def clamp_pitch(value, min, max):
 
     while value < min:
@@ -77,15 +81,8 @@ def clamp_pitch(value, min, max):
 
     return value
 
-def clamp_duration(value, min, max):
-
-    if value < min:
-        value = min
-
-    if value > max:
-        value = max
-
-    return value
+def round_duration(value, min):
+    return round(value / min) * min
 
 def load_data(path):
 

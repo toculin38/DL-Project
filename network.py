@@ -1,32 +1,36 @@
-from keras.models import Sequential
-from keras.layers import Dense
-from keras.layers import Dropout
-from keras.layers import LSTM
-from keras.layers import Activation
-
+from keras.models import Sequential, Model
+from keras.layers import Activation, Concatenate, Dropout, LSTM, Dense, Input
 from keras.callbacks import ModelCheckpoint
 
-
-def create(network_input, output_length, weights_path=None):
-
+def create(network_input, pitch_length, duration_length, weights_path=None):
     """ create the structure of the neural network """
     input_shape = (network_input.shape[1], network_input.shape[2])
+    first_input = Input(shape=input_shape)
 
-    model = Sequential()
-    model.add(LSTM(
-        512,
-        input_shape=input_shape,
-        return_sequences=True
-    ))
-    model.add(Dropout(0.3))
-    model.add(LSTM(512, return_sequences=True))
-    model.add(Dropout(0.3))
-    model.add(LSTM(512))
-    model.add(Dense(256))
-    model.add(Dropout(0.3))
-    model.add(Dense(output_length))
-    model.add(Activation('softmax'))
-    model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
+    front = Sequential()
+    front.add(LSTM(512, return_sequences=True))
+    front.add(Dropout(0.3))
+    front.add(LSTM(512, return_sequences=True))
+    front.add(Dropout(0.3))
+    front.add(LSTM(512))
+    front.add(Dense(256))
+    front.add(Dropout(0.3))
+
+    pitch_out = front(first_input)
+    pitch_out = Dense(pitch_length)(pitch_out)
+    pitch_out = Activation('softmax', name="pitch_output")(pitch_out)
+
+    duration_out = front(first_input)
+    duration_out = Dense(duration_length)(duration_out)
+    duration_out = Activation('softmax', name="duration_output")(duration_out)
+
+    losses = {
+        "pitch_output": "categorical_crossentropy",
+        "duration_output" :  "categorical_crossentropy"
+    }
+
+    model = Model(inputs=first_input, outputs=[pitch_out, duration_out])
+    model.compile(loss=losses, optimizer='rmsprop')
 
     if weights_path:
         model.load_weights(weights_path)
