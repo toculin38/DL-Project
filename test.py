@@ -84,7 +84,7 @@ def make_a_song():
     stream_player.play()
 
 def analysis_test():
-    midi_file = converter.parse("MyOwnDataset/Arriettys_Song_The_Secret_World_of_Arrietty.mid")
+    midi_file = converter.parse("MyOwnDataset/Angel_Beats_Unjust_Life.mid")
     midi_file = midi_util.to_c_major(midi_file)
 
     print(len(midi_file.parts))
@@ -111,7 +111,7 @@ def analysis_test():
     midi_stream.write('midi', fp='test.mid')
 
 def analysis_by_measures():
-    midi_file = converter.parse("midi_songs/balamb.mid")
+    midi_file = converter.parse("myown/Stay_Alive__ReZero_ED_2__TheIshter_Sheet_Music__Full_Sheets.mid")
     
     # pitchesTable = [pitch.Pitch(ps) for ps in range(17, 88)]
     # print(len(pitchesTable))
@@ -149,9 +149,8 @@ def analysis_by_measures():
     stream_player.play()
 
 if __name__ == '__main__':
-    # analysis_by_measures()
-    print(pitch.Pitch('A1').ps)
-    print(pitch.Pitch('C7').ps)
+    analysis_by_measures()
+
     # midi_path = "midi_songs/*.mid"
     # data_path = "midi_input/data"
     # data = midi_util.parse_midi(midi_path, data_path)

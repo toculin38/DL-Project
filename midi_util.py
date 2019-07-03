@@ -6,7 +6,7 @@ from music21 import converter, instrument, note, chord, interval, pitch, stream
 
 PitchMin = 33 #A1
 PitchMax = 96 #C7
-DurationMin = 0.5
+DurationMin = 0.25
 DurationMax = 4.0
 PitchTable = [0.0]
 PitchTable.extend([float(x) for x in range(PitchMin, PitchMax + 1)])

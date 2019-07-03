@@ -27,11 +27,11 @@ def generate():
     else:
         data = midi_util.parse_midi(midi_path, data_path)
 
-    network_input, normalized_input, n_vocab, pitchnames = prepare_sequences(data)
+    normalized_input, sequence_length, n_vocab, pitchnames = prepare_sequences(data)
 
-    model = network.create(normalized_input, n_vocab, weights_path="weights/weights-improvement-227-0.0373-bigger.hdf5")
+    model = network.create(normalized_input, n_vocab, weights_path="weights/weights-improvement-994-0.0166-bigger.hdf5")
 
-    prediction_output = generate_notes(model, network_input, pitchnames, n_vocab)
+    prediction_output = generate_notes(model, sequence_length, pitchnames, n_vocab)
     create_midi(prediction_output)
 
 def prepare_sequences(data):
@@ -64,21 +64,24 @@ def prepare_sequences(data):
     normalized_input[:,:,0] = normalized_input[:,:,0] / float(n_vocab)
     normalized_input[:,:,1] = normalized_input[:,:,1] / float(duration_max // duration_min)
 
-    return (network_input, normalized_input, n_vocab, pitches)
+    return (normalized_input, sequence_length, n_vocab, pitches)
 
-def generate_notes(model, network_input, pitches, n_vocab):
+def generate_notes(model, sequence_length, pitches, n_vocab):
     """ Generate notes from the neural network based on a sequence of notes """
     # pick a random sequence from the input as a starting point for the prediction
-    start = np.random.randint(0, len(network_input)-1)
 
     int_to_ps = dict((number, note) for number, note in enumerate(pitches))
 
-    pattern = network_input[start]
+    random_seq_pitch = np.random.randint(65, size=sequence_length)
+    random_seq_duraion = np.random.randint(16, size=sequence_length)
+
+    pattern = np.vstack((random_seq_pitch, random_seq_duraion)).T
+
     prediction_output = []
 
     # generate 500 notes
     for note_index in range(500):
-        prediction_input = np.reshape(pattern, (1, len(pattern), 2))
+        prediction_input = np.reshape(pattern, (1, pattern.shape[0], pattern.shape[1]))
         prediction_input = prediction_input / float(n_vocab)
 
         prediction = model.predict(prediction_input, verbose=0)
@@ -87,8 +90,12 @@ def generate_notes(model, network_input, pitches, n_vocab):
         result = int_to_ps[index]
         prediction_output.append(result)
 
-        pattern.append(np.array([index, 0.5]))
-        pattern = pattern[1:len(pattern)]
+        pattern[0:-1] = pattern[1:len(pattern)]
+        pattern[-1] = np.array([index, 0.5])
+
+        # random modify the pattern to prevent stock in weird melody
+        pattern_index = np.random.randint(len(pattern) - 1)
+        pattern[pattern_index][0] = np.random.randint(65)
 
     return prediction_output
 

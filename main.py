@@ -53,7 +53,7 @@ def prepare_sequences(data):
 
 if __name__ == '__main__':
     # parse midi songs to notes file
-    midi_path = "midi_songs/*.mid"
+    midi_path = "myown/*.mid"
     data_path = "midi_input/data"
 
     if glob.glob(data_path):
