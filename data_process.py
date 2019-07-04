@@ -3,7 +3,9 @@ from keras.utils import np_utils
 from music21 import stream, note, chord, instrument
 import midi_util
 
+
 KeyToPitch = midi_util.KeyToPitch
+OffsetStep = midi_util.OffsetStep
 
 def prepare_sequences(data, sequence_length):
     """ Prepare the sequences used by the Neural Network """
@@ -33,39 +35,45 @@ def prepare_sequences(data, sequence_length):
 
 def generate_notes(model, network_input):
     """ Generate notes from the neural network based on a sequence of notes """
-    #random pattern
-    # random_seq_pitch = np.random.randint(pitch_size, size=sequence_length)
-    # random_seq_duraion = np.random.randint(duration_size, size=sequence_length)
-    # pattern = np.vstack((random_seq_pitch, random_seq_duraion)).T
+    sequence_len = network_input.shape[1]
+    pitch_size = network_input.shape[2]
 
+    # random pattern
+    # pattern = np.vstack((random_seq_pitch, random_seq_duraion)).T
+    # random_pitch_indices = np.random.randint(pitch_size, size=sequence_len)
+    # pattern = np_utils.to_categorical(random_pitch_indices, num_classes=pitch_size)
     # random sequence in network_input
     start = np.random.randint(0, len(network_input)-1)
     pattern = np.array(network_input[start])
+
+    print(pattern.shape)
+
     prediction_output = []
     
     # generate 512 notes
-    for _ in range(512):
-        prediction_input = np.reshape(pattern, (1, pattern.shape[0], pattern.shape[1]))
+    for _ in range(256):
+
+         # random modify the pattern to prevent looping
+        random_offset_index = np.random.randint(0, sequence_len-1)
+        random_pitch_index = np.random.randint(0, pitch_size)
+        copy_pattern = np.copy(pattern)
+        copy_pattern[random_offset_index] = np_utils.to_categorical(random_pitch_index, num_classes=pitch_size)
+
+        prediction_input = np.reshape(copy_pattern, (1, sequence_len, pitch_size))
         prediction = model.predict(prediction_input, verbose=0)
-        predict_keyboard = np.argmax(prediction)
+        predict_index = np.argmax(prediction)
 
-        np.set_printoptions(suppress=True)
-
-        predict_pitch = KeyToPitch[predict_keyboard]
+        predict_pitch = KeyToPitch[predict_index]
         prediction_output.append(predict_pitch)
 
-        pattern[0:-1] = pattern[1:len(pattern)]
-        pattern[-1] = np_utils.to_categorical(predict_keyboard, num_classes=pattern.shape[1])
+        pattern[0:-1] = pattern[1:]
+        pattern[-1] = np_utils.to_categorical(predict_index, num_classes=pitch_size)
 
-        # random modify the pattern
-        # random_index = np.random.randint(0, len(pattern)-1)
-        # random_key = np.random.randint(0, len(pattern[random_index])-1)
-        # pattern[random_index][:] = 0
-        # pattern[random_index][random_key] = 1
+
 
     return prediction_output
 
-def create_midi(prediction_output):
+def create_midi(prediction_output, scale_name=None):
     offset = 0
     output_notes = []
     print(prediction_output)
@@ -82,7 +90,11 @@ def create_midi(prediction_output):
             new_note.storedInstrument = instrument.Piano()
             output_notes.append(new_note)
         # increase offset each iteration so that notes do not stack
-        offset += 0.5
+        offset += OffsetStep
 
     midi_stream = stream.Stream(output_notes)
+
+    if scale_name:
+        midi_util.to_major(midi_stream, scale_name)
+
     midi_stream.write('midi', fp='test_output.mid')

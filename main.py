@@ -34,9 +34,9 @@ if __name__ == '__main__':
     print(network_input.shape)
     print(network_output.shape)
     # create model with/without weights file
-    model = network.create(network_input, keyboard_size, weights_path="weights/weights-68-0.1021.hdf5")
-    # network.train(model, network_input, network_output)
+    model = network.create(network_input, keyboard_size, weights_path="weights/weights-44-0.1837.hdf5")
+    network.train(model, network_input, network_output)
 
     # generate midi
-    prediction_output = generate_notes(model, network_input)
-    create_midi(prediction_output)
+    # prediction_output = generate_notes(model, network_input)
+    # create_midi(prediction_output, 'D')

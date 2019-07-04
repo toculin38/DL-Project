@@ -72,7 +72,7 @@ def analysis_test():
     midi_stream.write('midi', fp='test.mid')
 
 def analysis_by_measures():
-    midi_file = converter.parse("myown/Stay_Alive__ReZero_ED_2__TheIshter_Sheet_Music__Full_Sheets.mid")
+    midi_file = converter.parse("midi_songs/Innocent_-_Joe_Hisaishi.mid")
     
     # pitchesTable = [pitch.Pitch(ps) for ps in range(17, 88)]
     # print(len(pitchesTable))
@@ -110,8 +110,8 @@ def analysis_by_measures():
     stream_player.play()
 
 if __name__ == '__main__':
-    # analysis_by_measures()
-    print(note.Note(KeyToPitch[87]).pitch.ps)
+    analysis_by_measures()
+
     # midi_path = "midi_songs/*.mid"
     # data_path = "midi_input/data"
     # data = midi_util.parse_midi(midi_path, data_path)

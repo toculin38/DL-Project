@@ -6,6 +6,9 @@ from music21 import converter, instrument, note, chord, interval, pitch, stream
 
 PitchMin = 33 #A1
 PitchMax = 96 #C7
+OffsetStep = 0.5
+OffsetMax = 4.0
+
 DurationMin = 0.5
 DurationMax = 4.0
 
@@ -21,7 +24,7 @@ def parse_midi(path, save_path=None):
     for midi_path in glob.glob(path):
         print("Parsing {}".format(midi_path))
         midi_file = converter.parse(midi_path)
-        # midi_file = to_c_major(midi_file)
+        midi_file = to_major(midi_file, "C")
 
         parts = instrument.partitionByInstrument(midi_file)
 
@@ -41,17 +44,35 @@ def parse_midi(path, save_path=None):
         notes = []
         for measure in measures:
             offset_iter = stream.iterator.OffsetIterator(measure.recurse().notes)
-            # measure_notes = np.full((measure_len, key_numbers), np.zeros(key_numbers))
+            measure_len = int(OffsetMax / OffsetStep)
+            key_numbers = len(PitchTokey)
+
+            measure_notes = np.full((measure_len, key_numbers), np.zeros(key_numbers))
+            measure_notes[:] = pitch_to_onehot(0) #default is silence
+
             for element_group in offset_iter:
-                # offset = element_group[0].offset
+                offset = element_group[0].offset
 
-                # if offset % DurationMin != 0 or offset < DurationMin or offset >= DurationMax:
-                #     continue
-                
-                # offset_index = int(offset // DurationMin)
-                keyboard = to_keyboard(element_group, key_numbers)
-                notes.append(keyboard)
+                if offset % OffsetStep != 0:
+                    continue
+                offset_index = int(offset // OffsetStep)
 
+                element = element_group[0]
+                if isinstance(element, note.Note):
+                    pitch_space = element.pitch.ps
+                elif isinstance(element, chord.Chord):
+                    pitch_space = max([pitch.ps for pitch in element.pitches])
+                else: #Rest
+                    pitch_space = 0
+
+                if pitch_space < PitchMin or pitch_space > PitchMax:
+                    pitch_space = 0
+
+                # Represent Continuity
+                measure_notes[offset_index:] = pitch_to_onehot(pitch_space)
+
+            notes.extend(measure_notes)
+  
         data.append(notes)
 
     if save_path:
@@ -60,32 +81,16 @@ def parse_midi(path, save_path=None):
 
     return data 
 
-def to_keyboard(element_group, key_numbers):
-    keyboard = np.zeros(key_numbers)
+def pitch_to_onehot(pitch_space):
+    key_index = PitchTokey[pitch_space]
+    onehot = np.zeros(len(PitchTokey))
+    onehot[key_index] = 1
+    return onehot
 
-    element = element_group[0]
-
-    if isinstance(element, note.Note):
-        pitch_index = element.pitch.ps
-    elif isinstance(element, chord.Chord):
-        pitch_index = max([pitch.ps for pitch in element.pitches])
-    else:
-        pitch_index = 0
-        key_index = 0
-
-    if PitchMax >= pitch_index >= PitchMin:
-        key_index = PitchTokey[pitch_index]
-        keyboard[key_index] = 1
-    else:
-        keyboard[0] = 1
-
-    return keyboard
-
-def to_c_major(midi_file):
+def to_major(midi_file, scale_name):
     midi_scale = midi_file.analyze('key').getScale('major')
-    interv = interval.Interval(midi_scale.tonic, pitch.Pitch('C'))
-    midi_file = midi_file.transpose(interv)
-    return midi_file
+    interv = interval.Interval(midi_scale.tonic, pitch.Pitch(scale_name))
+    return midi_file.transpose(interv)
 
 def clamp_pitch(value, min, max):
 
