@@ -4,47 +4,8 @@ from music21 import *
 
 import midi_util
 
-def get_notes():
-    """ Get all the notes and chords from the midi files in the ./midi_songs directory """
-    notes = []
-    chords = []
-
-    for file in glob.glob("joe/*.mid"):
-        midi_file = converter.parse(file)
-
-        part1 = midi_file.parts[0]
-        part2 = midi_file.parts[1]
-
-        print("Parsing %s" % file)
-        # part1.show('text')
-        notes_to_parse = None
-
-        notes_to_parse = part1.recurse()
-        chord_to_parse = part2.recurse()
-
-        for element in notes_to_parse:
-
-            offset = element.offset
-
-            if isinstance(element, note.Note):
-                print(offset, element.pitch, element.duration)
-                notes.append(str(element))
-            elif isinstance(element, chord.Chord):
-                print(offset, element.pitchNames, element.duration)
-                notes.append('.'.join(str(n) for n in element.normalOrder))
-            elif isinstance(element, note.Rest):
-                print(offset, element, element.duration)
-            else:
-                print(element)
-                pass
-
-    with open('data/notes', 'wb') as filepath:
-        pickle.dump(notes, filepath)
-
-    stream_player = midi.realtime.StreamPlayer(midi_file)
-    stream_player.play()
-
-    return notes
+KeyToPitch = dict((number, float(pitch)) for number, pitch in enumerate(range(21, 109)))
+PitchTokey = dict((float(pitch), number) for number, pitch in enumerate(range(21, 109)))
 
 def make_a_song():
     ts = meter.TimeSignature('6/8')
@@ -149,8 +110,8 @@ def analysis_by_measures():
     stream_player.play()
 
 if __name__ == '__main__':
-    analysis_by_measures()
-
+    # analysis_by_measures()
+    print(note.Note(KeyToPitch[87]).pitch.ps)
     # midi_path = "midi_songs/*.mid"
     # data_path = "midi_input/data"
     # data = midi_util.parse_midi(midi_path, data_path)
