@@ -1,7 +1,7 @@
 import glob
 import pickle
 from music21 import *
-
+import numpy as np
 import midi_util
 
 KeyToPitch = dict((number, float(pitch)) for number, pitch in enumerate(range(21, 109)))
@@ -110,7 +110,10 @@ def analysis_by_measures():
     stream_player.play()
 
 if __name__ == '__main__':
-    analysis_by_measures()
+    s = a = np.array([2, 7, 23], dtype=np.uint8)
+    b = np.unpackbits(s, axis=0)
+    print(b)
+    # analysis_by_measures()
 
     # midi_path = "midi_songs/*.mid"
     # data_path = "midi_input/data"

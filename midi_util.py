@@ -9,14 +9,6 @@ PitchMax = 96 #C7
 OffsetStep = 0.5
 OffsetMax = 4.0
 
-DurationMin = 0.5
-DurationMax = 4.0
-
-PitchTokey = dict((float(pitch), number+1) for number, pitch in enumerate(range(PitchMin, PitchMax + 1)))
-PitchTokey[0] = 0
-KeyToPitch = dict((number+1, float(pitch)) for number, pitch in enumerate(range(PitchMin, PitchMax + 1)))
-KeyToPitch[0] = 0
-
 def parse_midi(path, save_path=None):
     """ Get all the notes and chords from the midi files in the ./midi_songs directory """
     data = []
@@ -26,10 +18,8 @@ def parse_midi(path, save_path=None):
         midi_file = converter.parse(midi_path)
         midi_file = to_major(midi_file, "C")
 
-        parts = instrument.partitionByInstrument(midi_file)
-
-        if parts: # file has instrument parts
-            melody = parts[0]
+        if midi_file.parts: # file has multi-parts
+            melody = midi_file.parts[0]
         else: # file has notes in a flat structure
             melody = midi_file.flat
 
@@ -39,16 +29,12 @@ def parse_midi(path, save_path=None):
             print("Unavailable Midi {}".format(midi_path))
             continue
 
-        # measure_len = int(DurationMax // DurationMin)
-        key_numbers = len(PitchTokey)
         notes = []
         for measure in measures:
-            offset_iter = stream.iterator.OffsetIterator(measure.recurse().notes)
+            offset_iter = stream.iterator.OffsetIterator(measure.recurse().notesAndRests)
             measure_len = int(OffsetMax / OffsetStep)
-            key_numbers = len(PitchTokey)
-
-            measure_notes = np.full((measure_len, key_numbers), np.zeros(key_numbers))
-            measure_notes[:] = pitch_to_onehot(0) #default is silence
+            measure_pitches = np.zeros(measure_len)
+            measure_press = np.ones(measure_len)
 
             for element_group in offset_iter:
                 offset = element_group[0].offset
@@ -69,8 +55,11 @@ def parse_midi(path, save_path=None):
                     pitch_space = 0
 
                 # Represent Continuity
-                measure_notes[offset_index:] = pitch_to_onehot(pitch_space)
+                measure_pitches[offset_index:] = pitch_space
+                measure_press[offset_index:] = np.array(range(offset_index, measure_len))
+                measure_press[offset_index:] = measure_press[offset_index:] - offset_index + 1
 
+            measure_notes = np.stack((measure_pitches, measure_press), axis=-1)
             notes.extend(measure_notes)
   
         data.append(notes)
@@ -80,12 +69,6 @@ def parse_midi(path, save_path=None):
             pickle.dump(data, file)
 
     return data 
-
-def pitch_to_onehot(pitch_space):
-    key_index = PitchTokey[pitch_space]
-    onehot = np.zeros(len(PitchTokey))
-    onehot[key_index] = 1
-    return onehot
 
 def to_major(midi_file, scale_name):
     midi_scale = midi_file.analyze('key').getScale('major')

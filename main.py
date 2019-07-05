@@ -20,23 +20,20 @@ if __name__ == '__main__':
 
     sequence_length = 64
 
-    keyboard_table = midi_util.PitchTokey
-    keyboard_size = len(keyboard_table)
+    key_data, key_target, press_data, press_target = prepare_sequences(data, sequence_length)
 
-    print(keyboard_table)
-    print(keyboard_size)
+    key_size = key_target.shape[1]
+    press_size = press_target.shape[1]
 
-    duration_min = midi_util.DurationMin
-    duration_max = midi_util.DurationMax
-    duration_size = int(duration_max // duration_min)
+    print(key_data.shape)
+    print(key_target.shape)
+    print(press_target.shape)
 
-    network_input, network_output = prepare_sequences(data, sequence_length)
-    print(network_input.shape)
-    print(network_output.shape)
+
     # create model with/without weights file
-    model = network.create(network_input, keyboard_size, weights_path="weights/weights-44-0.1837.hdf5")
-    network.train(model, network_input, network_output)
+    model = network.create(key_data, key_size, press_data, press_size , weights_path=None)
+    network.train(model, key_data, press_data, key_target, press_target)
 
     # generate midi
-    # prediction_output = generate_notes(model, network_input)
-    # create_midi(prediction_output, 'D')
+    # prediction_output = generate_notes(model, key_data, press_data)
+    # create_midi(prediction_output)
