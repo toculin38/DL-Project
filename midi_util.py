@@ -6,20 +6,20 @@ from music21 import converter, instrument, note, chord, interval, pitch, stream
 
 PitchMin = 33 #A1
 PitchMax = 96 #C7
-OffsetStep = 0.5
+OffsetStep = 0.25
 OffsetMax = 4.0
 
-def parse_midi(path, save_path=None):
+def parse_midi(path, save_path=None, part_index=0):
     """ Get all the notes and chords from the midi files in the ./midi_songs directory """
     data = []
 
     for midi_path in glob.glob(path):
         print("Parsing {}".format(midi_path))
         midi_file = converter.parse(midi_path)
-        midi_file = to_major(midi_file, "C")
+        # midi_file = to_major(midi_file, "C")
 
         if midi_file.parts: # file has multi-parts
-            melody = midi_file.parts[0]
+            melody = midi_file.parts[part_index]
         else: # file has notes in a flat structure
             melody = midi_file.flat
 
@@ -35,6 +35,7 @@ def parse_midi(path, save_path=None):
             measure_len = int(OffsetMax / OffsetStep)
             measure_pitches = np.zeros(measure_len)
             measure_press = np.ones(measure_len)
+            measure_offset = np.array(range(0, measure_len))
 
             for element_group in offset_iter:
                 offset = element_group[0].offset
@@ -59,7 +60,8 @@ def parse_midi(path, save_path=None):
                 measure_press[offset_index:] = np.array(range(offset_index, measure_len))
                 measure_press[offset_index:] = measure_press[offset_index:] - offset_index + 1
 
-            measure_notes = np.stack((measure_pitches, measure_press), axis=-1)
+            measure_notes = np.stack((measure_pitches, measure_press, measure_offset), axis=-1)
+
             notes.extend(measure_notes)
   
         data.append(notes)

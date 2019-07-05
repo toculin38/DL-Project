@@ -14,7 +14,7 @@ KeyToPitch[0] = 0
 
 KeySize = len(PitchTokey)
 PressSize = int(midi_util.OffsetMax / midi_util.OffsetStep) 
-
+OffsetSize = int(np.log2(PressSize))
 OffsetStep = midi_util.OffsetStep
 
 def prepare_sequences(data, sequence_length):
@@ -24,36 +24,43 @@ def prepare_sequences(data, sequence_length):
     keys_output = []
     press_input = []
     press_output = []
+    offset_input = []
     # create input sequences and the corresponding outputs
     for notes in data:
         key_sequence = np_utils.to_categorical([PitchTokey[note[0]] for note in notes], num_classes=KeySize) 
         press_sequence = np_utils.to_categorical([note[1] - 1 for note in notes], num_classes=PressSize) 
-
-        for i in range(0, len(notes) - sequence_length, 1):
+        offset_sequence = np.unpackbits(np.array([[note[2]] for note in notes], dtype=np.uint8), axis=-1)[:,-OffsetSize:]
+        for i in range(0, len(notes) - 2 * sequence_length, 1):
             key_sequence_in = key_sequence[i:i + sequence_length]
-            key_sequence_out = key_sequence[i + sequence_length]
+            key_sequence_out = key_sequence[i + sequence_length: i + 2 * sequence_length]
             keys_input.append(key_sequence_in)
             keys_output.append(key_sequence_out)
 
             press_sequence_in = press_sequence[i:i + sequence_length]
-            press_sequence_out = press_sequence[i + sequence_length]
+            press_sequence_out = press_sequence[i + sequence_length: i + 2 * sequence_length]
             press_input.append(press_sequence_in)
             press_output.append(press_sequence_out)
+
+            offset_sequence_in = offset_sequence[i:i + sequence_length]
+            offset_input.append(offset_sequence_in)
 
     # reshape the input into a format compatible with LSTM layers
     n_patterns = len(keys_input)
     keys_input = np.reshape(keys_input, (n_patterns, sequence_length, KeySize))
 
     n_patterns = len(keys_output)
-    keys_output = np.reshape(keys_output, (n_patterns, KeySize))
+    keys_output = np.reshape(keys_output, (n_patterns, sequence_length, KeySize))
 
     n_patterns = len(press_input)
     press_input = np.reshape(press_input, (n_patterns, sequence_length, PressSize))
 
     n_patterns = len(press_output)
-    press_output = np.reshape(press_output, (n_patterns, PressSize))
+    press_output = np.reshape(press_output, (n_patterns , sequence_length, PressSize))
 
-    return (keys_input, keys_output, press_input, press_output)
+    n_patterns = len(offset_input)
+    offset_input = np.reshape(offset_input, (n_patterns, sequence_length, OffsetSize))
+
+    return (keys_input, keys_output, offset_input, press_input, press_output)
 
 # def sequence_to_onehot(notes_sequence):
 #     key_index = PitchTokey[pitch_space]
@@ -61,7 +68,7 @@ def prepare_sequences(data, sequence_length):
 #     onehot[key_index] = 1
 #     return onehot
 
-def generate_notes(model, key_data, press_data):
+def generate_notes(model, key_data, press_data, offset_data):
     """ Generate notes from the neural network based on a sequence of notes """
     pitch_size = key_data.shape[2]
 
@@ -73,14 +80,14 @@ def generate_notes(model, key_data, press_data):
     start = np.random.randint(0, len(key_data)-1)
     key_pattern = key_data[start]
     press_pattern = press_data[start]
-
+    offset_pattern = offset_data[start]
     print(key_pattern.shape)
     print(press_pattern.shape)
 
     prediction_output = []
     
-    # generate 512 notes
-    for _ in range(512):
+    # generate 16 measures
+    for _ in range(16):
 
         # random modify the pattern to prevent looping
         # random_offset_index = np.random.randint(0, key_pattern.shape[0]-1)
@@ -90,29 +97,47 @@ def generate_notes(model, key_data, press_data):
 
         prediction_key_input = np.reshape(key_pattern, (1, key_pattern.shape[0], key_pattern.shape[1]))
         prediction_press_input = np.reshape(press_pattern, (1, press_pattern.shape[0], press_pattern.shape[1]))
-        prediction_input = [prediction_key_input, prediction_press_input]
+        prediction_offset_input = np.reshape(offset_pattern, (1, offset_pattern.shape[0], offset_pattern.shape[1]))
+        prediction_input = [prediction_key_input, prediction_press_input, prediction_offset_input]
         prediction = model.predict(prediction_input, verbose=0)
 
+        key_prediction = np.reshape(prediction[0], (prediction[0].shape[1], prediction[0].shape[2]))
+        press_prediction = np.reshape(prediction[1], (prediction[1].shape[1], prediction[1].shape[2]))
 
-        press_index = np.argmax(prediction[1])
+        for index, (key_onehot, press_onehot) in enumerate(zip(key_prediction, press_prediction)):
+            key_index = np.argmax(key_onehot)
+            press_index = np.argmax(press_onehot)
 
-        if press_index == 1 and np.random.uniform() < 0.15:
-            key_index = np.argsort(-prediction[0][0])[1]
-        else:
-            key_index = np.argmax(prediction[0])
+            key_pattern[index] = np.zeros_like(key_onehot)
+            key_pattern[index][key_index] = 1
+            press_pattern[index] = np.zeros_like(press_onehot)
+            press_pattern[index][press_index] = 1
+
+            predict_pitch = KeyToPitch[key_index]
+            predict_press = press_index + 1
+            prediction_output.append((predict_pitch, predict_press))
+
             
-        predict_pitch = KeyToPitch[key_index]
-        predict_press = press_index + 1
 
-        prediction_output.append((predict_pitch, predict_press))
+        # press_index = np.argmax(prediction[1])
 
-        key_pattern[0:-1] = key_pattern[1:]
-        key_pattern[-1] = np.zeros_like(prediction[0])
-        key_pattern[-1][key_index] = 1
+        # if press_index == 1 and np.random.uniform() < 0.15:
+        #     key_index = np.argsort(-prediction[0][0])[1]
+        # else:
+        #     key_index = np.argmax(prediction[0])
+            
+        # predict_pitch = KeyToPitch[key_index]
+        # predict_press = press_index + 1
 
-        press_pattern[0:-1] = press_pattern[1:]
-        press_pattern[-1] = np.zeros_like(prediction[1])
-        press_pattern[-1][press_index] = 1
+        # prediction_output.append((predict_pitch, predict_press))
+
+        # key_pattern[0:-1] = key_pattern[1:]
+        # key_pattern[-1] = np.zeros_like(prediction[0])
+        # key_pattern[-1][key_index] = 1
+
+        # press_pattern[0:-1] = press_pattern[1:]
+        # press_pattern[-1] = np.zeros_like(prediction[1])
+        # press_pattern[-1][press_index] = 1
 
     return prediction_output
 
@@ -123,7 +148,7 @@ def create_midi(prediction_output, scale_name=None):
     # create note and chord objects based on the values generated by the model
     for (pitch, press) in prediction_output:
 
-        if len(output_notes) > 0 and pitch == output_notes[-1] and press != 1:
+        if len(output_notes) > 0 and press != 1:
             output_notes[-1].duration.quarterLength = OffsetStep * press
         else:
             if pitch != 0:
@@ -140,6 +165,6 @@ def create_midi(prediction_output, scale_name=None):
     midi_stream = stream.Stream(output_notes)
 
     if scale_name:
-        midi_util.to_major(midi_stream, scale_name)
+        midi_stream = midi_util.to_major(midi_stream, scale_name)
 
     midi_stream.write('midi', fp='test_output.mid')

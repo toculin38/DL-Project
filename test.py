@@ -45,7 +45,7 @@ def make_a_song():
     stream_player.play()
 
 def analysis_test():
-    midi_file = converter.parse("MyOwnDataset/Angel_Beats_Unjust_Life.mid")
+    midi_file = converter.parse("MyOwnDataset/Memories_of_Dust_NieR_Automata_Piano_cover.mid")
     midi_file = midi_util.to_c_major(midi_file)
 
     print(len(midi_file.parts))
@@ -72,7 +72,7 @@ def analysis_test():
     midi_stream.write('midi', fp='test.mid')
 
 def analysis_by_measures():
-    midi_file = converter.parse("midi_songs/Innocent_-_Joe_Hisaishi.mid")
+    midi_file = converter.parse("midi_songs/Styx_Helix_Slow_ver.mid")
     
     # pitchesTable = [pitch.Pitch(ps) for ps in range(17, 88)]
     # print(len(pitchesTable))
@@ -109,11 +109,10 @@ def analysis_by_measures():
     stream_player = midi.realtime.StreamPlayer(midi_file)
     stream_player.play()
 
+
+
 if __name__ == '__main__':
-    s = a = np.array([2, 7, 23], dtype=np.uint8)
-    b = np.unpackbits(s, axis=0)
-    print(b)
-    # analysis_by_measures()
+    analysis_by_measures()
 
     # midi_path = "midi_songs/*.mid"
     # data_path = "midi_input/data"

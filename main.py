@@ -18,40 +18,38 @@ if __name__ == '__main__':
 
     # parse midi songs to notes file
     midi_path = "midi_songs/4-4/*.mid"
-    data_path = "midi_input/data"
+    molody_path = "midi_input/melody_data"
+    accomp_path = "midi_input/accomp_data"
 
-    if glob.glob(data_path):
-        data = midi_util.load_data(data_path)
+    if glob.glob(molody_path):
+        molody_data = midi_util.load_data(molody_path)
     else:
-        data = midi_util.parse_midi(midi_path, data_path)
+        molody_data = midi_util.parse_midi(midi_path, molody_path, part_index=0)
+
+    # if glob.glob(accomp_path):
+    #     accomp_data = midi_util.load_data(accomp_path)
+    # else:
+    #     accomp_data = midi_util.parse_midi(midi_path, accomp_path, part_index=1)
 
     sequence_length = 64
 
-    key_data, key_target, press_data, press_target = prepare_sequences(data, sequence_length)
+    key_data, key_target, offset_data, press_data, press_target = prepare_sequences(molody_data, sequence_length)
 
     key_size = key_target.shape[1]
     press_size = press_target.shape[1]
 
-    print(key_data.shape)
-    print(key_target.shape)
-    print(press_target.shape)
-
-
-    # create model with/without weights file
     if args.weights:
-        model = network.create(key_data, key_size, press_data, press_size, weights_path=args.weights)
+        melody_model = network.create(key_data, press_data, offset_data, weights_path=args.weights)
     else:
-        model = network.create(key_data, key_size, press_data, press_size, weights_path=None)
+        melody_model = network.create(key_data, press_data, offset_data, weights_path=None)
         if args.generate:
             print('Warning: generating music without trained weights')
 
-    # train the network
     if args.train:
         print('training...')
-        network.train(model, key_data, press_data, key_target, press_target)
+        network.train(melody_model, key_data, press_data, offset_data, key_target, press_target)
 
-    # generate midi
     if args.generate:
         print('generating...')
-        prediction_output = generate_notes(model, key_data, press_data)
+        prediction_output = generate_notes(melody_model, key_data, press_data, offset_data)
         create_midi(prediction_output)
