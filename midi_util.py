@@ -16,7 +16,7 @@ def parse_midi(path, save_path=None, part_index=0):
     for midi_path in glob.glob(path):
         print("Parsing {}".format(midi_path))
         midi_file = converter.parse(midi_path)
-        # midi_file = to_major(midi_file, "C")
+        midi_file = to_major(midi_file, "C")
 
         if midi_file.parts: # file has multi-parts
             melody = midi_file.parts[part_index]
@@ -30,7 +30,7 @@ def parse_midi(path, save_path=None, part_index=0):
             continue
 
         notes = []
-        
+
         for measure in measures:
             offset_iter = stream.iterator.OffsetIterator(measure.recurse().notesAndRests)
             measure_len = int(OffsetMax / OffsetStep)

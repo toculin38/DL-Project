@@ -63,12 +63,6 @@ def prepare_sequences(data, sequence_length):
 
     return (keys_input, keys_output, offset_input, press_input, press_output)
 
-# def sequence_to_onehot(notes_sequence):
-#     key_index = PitchTokey[pitch_space]
-#     onehot = np.zeros(len(PitchTokey))
-#     onehot[key_index] = 1
-#     return onehot
-
 def generate_notes(model, key_data, press_data, offset_data):
     """ Generate notes from the neural network based on a sequence of notes """
 
@@ -95,12 +89,10 @@ def generate_notes(model, key_data, press_data, offset_data):
     for _ in range(32):
         # random modify the pattern to prevent looping
         # random_offset_index = np.random.randint(0, key_pattern.shape[0]-1)
-        # random_pitch_index = np.random.randint(0, pitch_size)
+        # random_pitch_index = np.random.randint(0, key_pattern.shape[1])
         # copy_pattern = np.copy(key_pattern)
-        # copy_pattern[random_offset_index] = np_utils.to_categorical(random_pitch_index, num_classes=pitch_size)
+        # copy_pattern[random_offset_index] = np_utils.to_categorical(random_pitch_index, num_classes=key_pattern.shape[1])
 
-        print(offset_pattern)
-        
         prediction_key_input = np.reshape(key_pattern, (1, key_pattern.shape[0], key_pattern.shape[1]))
         prediction_press_input = np.reshape(press_pattern, (1, press_pattern.shape[0], press_pattern.shape[1]))
         prediction_offset_input = np.reshape(offset_pattern, (1, offset_pattern.shape[0], offset_pattern.shape[1]))
@@ -123,28 +115,30 @@ def generate_notes(model, key_data, press_data, offset_data):
             predict_press = press_index + 1
             prediction_output.append((predict_pitch, predict_press))
 
-        # Not a correct way to shift the offset pattern
-        offset_pattern[:,0] = (offset_pattern[:,0] + 1) % 2
+        # key_onehot = key_prediction[-1]
+        # press_onehot = press_prediction[-1]
 
-        # press_index = np.argmax(prediction[1])
-
-        # if press_index == 1 and np.random.uniform() < 0.15:
-        #     key_index = np.argsort(-prediction[0][0])[1]
-        # else:
-        #     key_index = np.argmax(prediction[0])
-            
+        # press_index = np.argmax(press_onehot)
+        # # if press_index == 1 and np.random.uniform() < 0.15:
+        # #     key_index = np.argsort(-prediction[0][0])[1]
+        # # else:
+        # #     key_index = np.argmax(prediction[0])
+        # key_index = np.argmax(key_onehot)
         # predict_pitch = KeyToPitch[key_index]
         # predict_press = press_index + 1
 
         # prediction_output.append((predict_pitch, predict_press))
 
         # key_pattern[0:-1] = key_pattern[1:]
-        # key_pattern[-1] = np.zeros_like(prediction[0])
+        # key_pattern[-1] = np.zeros_like(key_onehot)
         # key_pattern[-1][key_index] = 1
 
         # press_pattern[0:-1] = press_pattern[1:]
-        # press_pattern[-1] = np.zeros_like(prediction[1])
+        # press_pattern[-1] = np.zeros_like(press_onehot)
         # press_pattern[-1][press_index] = 1
+
+        # Not a correct way to shift the offset pattern
+        # offset_pattern[:,0] = (offset_pattern[:,0] + 1) % 2
 
     return prediction_output
 
