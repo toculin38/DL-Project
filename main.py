@@ -31,7 +31,7 @@ if __name__ == '__main__':
     # else:
     #     accomp_data = midi_util.parse_midi(midi_path, accomp_path, part_index=1)
 
-    sequence_length = 64
+    sequence_length = 16
 
     key_data, key_target, offset_data, press_data, press_target = prepare_sequences(molody_data, sequence_length)
 

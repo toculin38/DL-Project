@@ -14,9 +14,9 @@ KeyToPitch[0] = 0
 
 KeySize = len(PitchTokey)
 PressSize = int(midi_util.OffsetMax / midi_util.OffsetStep) 
-OffsetSize = int(np.log2(PressSize))
+OffsetSize = PressSize * 2
 OffsetStep = midi_util.OffsetStep
-
+OffsetBitSize = int(np.log2(OffsetSize))
 def prepare_sequences(data, sequence_length):
     """ Prepare the sequences used by the Neural Network """
     # create a dictionary to map pitches to integers
@@ -29,7 +29,8 @@ def prepare_sequences(data, sequence_length):
     for notes in data:
         key_sequence = np_utils.to_categorical([PitchTokey[note[0]] for note in notes], num_classes=KeySize) 
         press_sequence = np_utils.to_categorical([note[1] - 1 for note in notes], num_classes=PressSize) 
-        offset_sequence = np.unpackbits(np.array([[note[2]] for note in notes], dtype=np.uint8), axis=-1)[:,-OffsetSize:]
+        offset_sequence = np.unpackbits(np.array([[idx % OffsetSize] for idx, note in enumerate(notes)], dtype=np.uint8), axis=-1)[:,-OffsetBitSize:]
+
         for i in range(0, len(notes) - 2 * sequence_length, 1):
             key_sequence_in = key_sequence[i:i + sequence_length]
             key_sequence_out = key_sequence[i + sequence_length: i + 2 * sequence_length]
@@ -58,7 +59,7 @@ def prepare_sequences(data, sequence_length):
     press_output = np.reshape(press_output, (n_patterns , sequence_length, PressSize))
 
     n_patterns = len(offset_input)
-    offset_input = np.reshape(offset_input, (n_patterns, sequence_length, OffsetSize))
+    offset_input = np.reshape(offset_input, (n_patterns, sequence_length, OffsetBitSize))
 
     return (keys_input, keys_output, offset_input, press_input, press_output)
 
@@ -70,31 +71,36 @@ def prepare_sequences(data, sequence_length):
 
 def generate_notes(model, key_data, press_data, offset_data):
     """ Generate notes from the neural network based on a sequence of notes """
-    pitch_size = key_data.shape[2]
 
     # random pattern
     # pattern = np.vstack((random_seq_pitch, random_seq_duraion)).T
-    # random_pitch_indices = np.random.randint(pitch_size, size=key_data.shape[1])
-    # key_pattern = np_utils.to_categorical(random_pitch_indices, num_classes=pitch_size)
+    # random_pitch_indices = np.random.randint(key_data.shape[2], size=key_data.shape[1])
+    # random_pitch_indices = np.random.randint(press_data.shape[2], size=press_data.shape[1])
+    # key_pattern = np_utils.to_categorical(random_pitch_indices, num_classes=key_data.shape[2])
+    # press_pattern = np_utils.to_categorical(random_pitch_indices, num_classes=press_data.shape[2])
+    # offset_pattern = offset_data[0]
+    # print(offset_pattern)
+
     # random sequence in key_data
-    start = np.random.randint(0, len(key_data)-1)
+    start = np.random.randint(0, key_data.shape[0]-1)
     key_pattern = key_data[start]
     press_pattern = press_data[start]
     offset_pattern = offset_data[start]
     print(key_pattern.shape)
     print(press_pattern.shape)
-
+    print(offset_pattern.shape)
     prediction_output = []
     
-    # generate 16 measures
-    for _ in range(16):
-
+    # generate 32 bars
+    for _ in range(32):
         # random modify the pattern to prevent looping
         # random_offset_index = np.random.randint(0, key_pattern.shape[0]-1)
         # random_pitch_index = np.random.randint(0, pitch_size)
         # copy_pattern = np.copy(key_pattern)
         # copy_pattern[random_offset_index] = np_utils.to_categorical(random_pitch_index, num_classes=pitch_size)
 
+        print(offset_pattern)
+        
         prediction_key_input = np.reshape(key_pattern, (1, key_pattern.shape[0], key_pattern.shape[1]))
         prediction_press_input = np.reshape(press_pattern, (1, press_pattern.shape[0], press_pattern.shape[1]))
         prediction_offset_input = np.reshape(offset_pattern, (1, offset_pattern.shape[0], offset_pattern.shape[1]))
@@ -117,7 +123,8 @@ def generate_notes(model, key_data, press_data, offset_data):
             predict_press = press_index + 1
             prediction_output.append((predict_pitch, predict_press))
 
-            
+        # Not a correct way to shift the offset pattern
+        offset_pattern[:,0] = (offset_pattern[:,0] + 1) % 2
 
         # press_index = np.argmax(prediction[1])
 

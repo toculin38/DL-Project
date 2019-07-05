@@ -72,7 +72,7 @@ def analysis_test():
     midi_stream.write('midi', fp='test.mid')
 
 def analysis_by_measures():
-    midi_file = converter.parse("midi_songs/Styx_Helix_Slow_ver.mid")
+    midi_file = converter.parse("midi_songs/4-4/Again__Your_Lie_in_April__TheIshter_Sheet_Music__Full_Sheets_-_Re-Done.mid")
     
     # pitchesTable = [pitch.Pitch(ps) for ps in range(17, 88)]
     # print(len(pitchesTable))
@@ -88,7 +88,7 @@ def analysis_by_measures():
 
         for element_group in offset_iter:
             element = element_group[0]
-            
+            print(element.offset)
             if isinstance(element, note.Rest):
                 ps = 0
             elif isinstance(element, note.Note):
