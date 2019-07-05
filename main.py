@@ -1,3 +1,4 @@
+import argparse
 import glob
 import pickle
 import numpy as np
@@ -9,6 +10,12 @@ import midi_util
 from data_process import *
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='Music Generator by LSTM')
+    parser.add_argument('--train', action='store_true', help='train the music generator')
+    parser.add_argument('--generate', action='store_true', help='generate the music')
+    parser.add_argument('--weights', type=str, help='weights path')
+    args = parser.parse_args()
+
     # parse midi songs to notes file
     midi_path = "midi_songs/4-4/*.mid"
     data_path = "midi_input/data"
@@ -31,9 +38,20 @@ if __name__ == '__main__':
 
 
     # create model with/without weights file
-    model = network.create(key_data, key_size, press_data, press_size , weights_path=None)
-    network.train(model, key_data, press_data, key_target, press_target)
+    if args.weights:
+        model = network.create(key_data, key_size, press_data, press_size, weights_path=args.weights)
+    else:
+        model = network.create(key_data, key_size, press_data, press_size, weights_path=None)
+        if args.generate:
+            print('Warning: generating music without trained weights')
+
+    # train the network
+    if args.train:
+        print('training...')
+        network.train(model, key_data, press_data, key_target, press_target)
 
     # generate midi
-    # prediction_output = generate_notes(model, key_data, press_data)
-    # create_midi(prediction_output)
+    if args.generate:
+        print('generating...')
+        prediction_output = generate_notes(model, key_data, press_data)
+        create_midi(prediction_output)
