@@ -138,7 +138,7 @@ def generate_notes(model, key_data, press_data, offset_data):
         # press_pattern[-1][press_index] = 1
 
         # Not a correct way to shift the offset pattern
-        # offset_pattern[:,0] = (offset_pattern[:,0] + 1) % 2
+        offset_pattern[:,0] = (offset_pattern[:,0] + 1) % 2
 
     return prediction_output
 

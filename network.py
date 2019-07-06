@@ -29,7 +29,7 @@ def create(keys_data, press_data, offset_data, weights_path=None):
     press_layer.add(TimeDistributed(Dense(256)))
     press_layer.add(Dropout(0.2))
 
-    press_layer_input = Concatenate(axis=-1)([key_input, press_input, offset_input])
+    press_layer_input = Concatenate(axis=-1)([key_input, press_input, key_out])
     press_out = press_layer(press_layer_input)
     press_out = Dense(press_data.shape[2])(press_out)
     press_out = Activation('softmax', name="press")(press_out)
