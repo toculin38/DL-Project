@@ -72,7 +72,7 @@ def analysis_test():
     midi_stream.write('midi', fp='test.mid')
 
 def analysis_by_measures():
-    midi_file = converter.parse("midi_songs/4-4/True_Tears_Ichijin_no_Kaze.mid")
+    midi_file = converter.parse("midi_songs/4-4/Alan_Walker_-_Darkside_piano.mid")
     
     # pitchesTable = [pitch.Pitch(ps) for ps in range(17, 88)]
     # print(len(pitchesTable))
@@ -111,6 +111,11 @@ def analysis_by_measures():
 
 
 if __name__ == '__main__':
+
+    y = np.array([[123,24123,32432], [234,24,23]])
+    b = y > 200
+    print(b.astype(int))
+
     analysis_by_measures()
 
     # midi_path = "midi_songs/*.mid"

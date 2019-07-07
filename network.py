@@ -5,33 +5,33 @@ import keras.backend as K
 import tensorflow as tf
 import numpy as np
 
-def create(keys_data, press_data, offset_data, weights_path=None):
-    key_input = Input(shape=(keys_data.shape[1], keys_data.shape[2]))
-    press_input = Input(shape=(press_data.shape[1], press_data.shape[2]))
-    offset_input = Input(shape=(offset_data.shape[1], offset_data.shape[2]))
+def create(sequence_length, key_size, press_size, offset_size, weights_path=None):
+    key_input = Input(shape=(sequence_length, key_size))
+    press_input = Input(shape=(sequence_length, press_size))
+    offset_input = Input(shape=(sequence_length, offset_size))
 
     key_layer = Sequential()
     key_layer.add(LSTM(512, return_sequences=True))
-    key_layer.add(Dropout(0.2))
+    key_layer.add(Dropout(0.3))
     key_layer.add(LSTM(512, return_sequences=True))
     key_layer.add(TimeDistributed(Dense(256)))
-    key_layer.add(Dropout(0.2))
+    key_layer.add(Dropout(0.3))
     
     key_layer_input = Concatenate(axis=-1)([key_input, press_input, offset_input])
-    key_out = key_layer(key_layer_input)
-    key_out = Dense(keys_data.shape[2])(key_out)
+    key_info = key_layer(key_layer_input)
+    key_out = Dense(key_size)(key_info)
     key_out = Activation('softmax', name="key")(key_out)
 
-    press_layer = Sequential()
-    press_layer.add(LSTM(512, return_sequences=True))
-    press_layer.add(Dropout(0.2))
-    press_layer.add(LSTM(512, return_sequences=True))
-    press_layer.add(TimeDistributed(Dense(256)))
-    press_layer.add(Dropout(0.2))
+    # press_layer = Sequential()
+    # press_layer.add(LSTM(512, return_sequences=True))
+    # press_layer.add(Dropout(0.3))
+    # press_layer.add(LSTM(512, return_sequences=True))
+    # press_layer.add(TimeDistributed(Dense(256)))
+    # press_layer.add(Dropout(0.3))
+    # press_layer_input = Concatenate(axis=-1)([key_input, press_input])
+    # press_out = press_layer(press_layer_input)
 
-    press_layer_input = Concatenate(axis=-1)([key_input, press_input, key_out])
-    press_out = press_layer(press_layer_input)
-    press_out = Dense(press_data.shape[2])(press_out)
+    press_out = Dense(press_size)(key_info)
     press_out = Activation('softmax', name="press")(press_out)
 
     losses = {

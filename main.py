@@ -2,12 +2,29 @@ import argparse
 import glob
 import pickle
 import numpy as np
-
+import os
 from music21 import converter, instrument, note, chord, stream
 
 import network
 import midi_util
 from data_process import *
+
+def prepare_melody_data(midi_folder="midi_songs/4-4/", save_folder="midi_input/"):
+    melody_data = []
+
+    for midi_path in glob.glob(midi_folder + "*.mid"):
+        file_basename = os.path.basename(midi_path)
+        file_name = os.path.splitext(file_basename)[0]
+        file_path = save_folder + file_name
+
+        if glob.glob(file_path):
+            melody_data.append(midi_util.load_data(file_path))
+        else:
+            notes = midi_util.parse_midi(midi_path, file_path, part_index=0)
+            if notes:
+                melody_data.append(notes)
+    return melody_data
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Music Generator by LSTM')
@@ -17,31 +34,15 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     # parse midi songs to notes file
-    midi_path = "midi_songs/4-4/*.mid"
-    molody_path = "midi_input/melody_data"
-    accomp_path = "midi_input/accomp_data"
-
-    if glob.glob(molody_path):
-        molody_data = midi_util.load_data(molody_path)
-    else:
-        molody_data = midi_util.parse_midi(midi_path, molody_path, part_index=0)
-
-    # if glob.glob(accomp_path):
-    #     accomp_data = midi_util.load_data(accomp_path)
-    # else:
-    #     accomp_data = midi_util.parse_midi(midi_path, accomp_path, part_index=1)
+    melody_data = prepare_melody_data()
 
     sequence_length = 32
-
-    key_data, key_target, offset_data, press_data, press_target = prepare_sequences(molody_data, sequence_length)
-
-    key_size = key_target.shape[1]
-    press_size = press_target.shape[1]
+    key_data, key_target, offset_data, press_data, press_target = prepare_sequences(melody_data, sequence_length)
 
     if args.weights:
-        melody_model = network.create(key_data, press_data, offset_data, weights_path=args.weights)
+        melody_model = network.create(sequence_length, KeySize, PressSize, OffsetBitSize, weights_path=args.weights)
     else:
-        melody_model = network.create(key_data, press_data, offset_data, weights_path=None)
+        melody_model = network.create(sequence_length, KeySize, PressSize, OffsetBitSize, weights_path=None)
         if args.generate:
             print('Warning: generating music without trained weights')
 

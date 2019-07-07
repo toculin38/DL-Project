@@ -9,68 +9,63 @@ PitchMax = 96 #C7
 OffsetStep = 0.25
 OffsetMax = 4.0
 
-def parse_midi(path, save_path=None, part_index=0):
+def parse_midi(midi_path, save_path=None, part_index=0):
     """ Get all the notes and chords from the midi files in the ./midi_songs directory """
-    data = []
+    print("Parsing {}".format(midi_path))
+    midi_file = converter.parse(midi_path)
+    midi_file = to_major(midi_file, "C")
 
-    for midi_path in glob.glob(path):
-        print("Parsing {}".format(midi_path))
-        midi_file = converter.parse(midi_path)
-        midi_file = to_major(midi_file, "C")
+    if midi_file.parts: # file has multi-parts
+        melody = midi_file.parts[part_index]
+    else: # file has notes in a flat structure
+        melody = midi_file.flat
 
-        if midi_file.parts: # file has multi-parts
-            melody = midi_file.parts[part_index]
-        else: # file has notes in a flat structure
-            melody = midi_file.flat
+    try:
+        measures = melody.measures(0, None, collect="Measure")
+    except:
+        print("Unavailable Midi {}".format(midi_path))
+        return False
 
-        try:
-            measures = melody.measures(0, None, collect="Measure")
-        except:
-            print("Unavailable Midi {}".format(midi_path))
-            continue
+    notes = []
 
-        notes = []
+    for measure in measures:
+        offset_iter = stream.iterator.OffsetIterator(measure.recurse().notesAndRests)
+        measure_len = int(OffsetMax / OffsetStep)
+        measure_pitches = np.zeros(measure_len)
+        measure_press = np.ones(measure_len)
 
-        for measure in measures:
-            offset_iter = stream.iterator.OffsetIterator(measure.recurse().notesAndRests)
-            measure_len = int(OffsetMax / OffsetStep)
-            measure_pitches = np.zeros(measure_len)
-            measure_press = np.ones(measure_len)
+        for element_group in offset_iter:
+            offset = element_group[0].offset
 
-            for element_group in offset_iter:
-                offset = element_group[0].offset
+            if offset % OffsetStep != 0:
+                continue
+            offset_index = int(offset // OffsetStep)
 
-                if offset % OffsetStep != 0:
-                    continue
-                offset_index = int(offset // OffsetStep)
+            element = element_group[0]
+            if isinstance(element, note.Note):
+                pitch_space = element.pitch.ps
+            elif isinstance(element, chord.Chord):
+                pitch_space = max([pitch.ps for pitch in element.pitches])
+            else: #Rest
+                pitch_space = 0
 
-                element = element_group[0]
-                if isinstance(element, note.Note):
-                    pitch_space = element.pitch.ps
-                elif isinstance(element, chord.Chord):
-                    pitch_space = max([pitch.ps for pitch in element.pitches])
-                else: #Rest
-                    pitch_space = 0
+            if pitch_space < PitchMin or pitch_space > PitchMax:
+                pitch_space = 0
 
-                if pitch_space < PitchMin or pitch_space > PitchMax:
-                    pitch_space = 0
+            # Represent Continuity
+            measure_pitches[offset_index:] = pitch_space
+            measure_press[offset_index:] = np.array(range(offset_index, measure_len))
+            measure_press[offset_index:] = measure_press[offset_index:] - offset_index + 1
 
-                # Represent Continuity
-                measure_pitches[offset_index:] = pitch_space
-                measure_press[offset_index:] = np.array(range(offset_index, measure_len))
-                measure_press[offset_index:] = measure_press[offset_index:] - offset_index + 1
+        measure_notes = np.stack((measure_pitches, measure_press), axis=-1)
 
-            measure_notes = np.stack((measure_pitches, measure_press), axis=-1)
-
-            notes.extend(measure_notes)
-  
-        data.append(notes)
+        notes.extend(measure_notes)
 
     if save_path:
         with open(save_path, 'wb') as file:
-            pickle.dump(data, file)
+            pickle.dump(notes, file)
 
-    return data 
+    return notes 
 
 def to_major(midi_file, scale_name):
     midi_scale = midi_file.analyze('key').getScale('major')
