@@ -14,7 +14,7 @@ KeyToPitch[0] = 0
 
 KeySize = len(PitchTokey)
 PressSize = int(midi_util.OffsetMax / midi_util.OffsetStep) # Number of offset in a bar
-OffsetSize = PressSize * 4 # Represent a Cycle of music pattern
+OffsetSize = PressSize * 8 # Represent a Cycle of music pattern
 OffsetStep = midi_util.OffsetStep
 OffsetBitSize = int(np.log2(OffsetSize))
 def prepare_sequences(data, sequence_length):
@@ -139,7 +139,7 @@ def generate_notes(model, key_data, press_data, offset_data):
         press_pattern[-1][press_index] = 1
 
         # Not a correct way to shift the offset pattern
-        new_start_offset = (np.packbits(offset_pattern, axis=-1) // 2 * (8 - OffsetBitSize))[1][0]
+        new_start_offset = (np.packbits(offset_pattern, axis=-1) // (2 ** (8 - OffsetBitSize)))[1][0]
         offset_array = np.array([[(num + new_start_offset) % OffsetSize] for num in range(0, offset_pattern.shape[0])], dtype=np.uint8)
         offset_pattern = np.unpackbits(offset_array, axis=-1)[:,-OffsetBitSize:]
 
