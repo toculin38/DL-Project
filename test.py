@@ -72,7 +72,7 @@ def analysis_test():
     midi_stream.write('midi', fp='test.mid')
 
 def analysis_by_measures():
-    midi_file = converter.parse("midi_songs/4-4/Alan_Walker_-_Darkside_piano.mid")
+    midi_file = converter.parse("midi_songs/4-4/Sonata_for_a_Night_Under_the_Stars.mscz.mid")
     
     # pitchesTable = [pitch.Pitch(ps) for ps in range(17, 88)]
     # print(len(pitchesTable))
@@ -111,10 +111,24 @@ def analysis_by_measures():
 
 
 if __name__ == '__main__':
+    # PressSize = 32
+    # CycleLength = 128
+    # OffsetBitSize = int(np.log2(CycleLength))
 
-    y = np.array([[123,24123,32432], [234,24,23]])
-    b = y > 200
-    print(b.astype(int))
+    # offset_pattern = np.array([[x] for x in range (64, 64 + PressSize)], dtype=np.uint8)
+    # offset_pattern = np.unpackbits(offset_pattern, axis=-1)[:,-OffsetBitSize:]
+    # print(offset_pattern)
+    # new_offset_pattern = np.packbits(offset_pattern, axis=-1) // (2 ** (8 - OffsetBitSize))
+    # new_offset_pattern = (new_offset_pattern + PressSize) % CycleLength
+    
+    # new_offset_pattern = np.unpackbits(new_offset_pattern, axis=-1)
+    # offset_pattern = new_offset_pattern[:,-OffsetBitSize:]
+    # print(offset_pattern)
+    
+    
+    # new_offset_pattern = new_offset_patten % OffsetSize
+    # offset_pattern = np.unpackbits(new_offset_pattern, axis=-1)
+
 
     analysis_by_measures()
 

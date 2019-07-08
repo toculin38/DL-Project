@@ -36,13 +36,15 @@ if __name__ == '__main__':
     # parse midi songs to notes file
     melody_data = prepare_melody_data()
 
-    sequence_length = 32
+    sequence_length = 16
     key_data, key_target, offset_data, press_data, press_target = prepare_sequences(melody_data, sequence_length)
 
     if args.weights:
-        melody_model = network.create(sequence_length, KeySize, PressSize, OffsetBitSize, weights_path=args.weights)
+        melody_model, encoder, decoder = network.create_2(sequence_length, KeySize, PressSize, OffsetBitSize, weights_path=args.weights)
     else:
-        melody_model = network.create(sequence_length, KeySize, PressSize, OffsetBitSize, weights_path=None)
+        melody_model, encoder, decoder = network.create_2(sequence_length, KeySize, PressSize, OffsetBitSize, weights_path=None)
+        # random_z = np.random.uniform(0, 1, (1, 128))
+        # prediction = decoder.predict(random_z)
         if args.generate:
             print('Warning: generating music without trained weights')
 
@@ -52,5 +54,5 @@ if __name__ == '__main__':
 
     if args.generate:
         print('generating...')
-        prediction_output = generate_notes(melody_model, key_data, press_data, offset_data)
+        prediction_output = generate_notes(encoder, decoder)
         create_midi(prediction_output)

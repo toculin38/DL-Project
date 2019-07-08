@@ -14,9 +14,10 @@ KeyToPitch[0] = 0
 
 KeySize = len(PitchTokey)
 PressSize = int(midi_util.OffsetMax / midi_util.OffsetStep) # Number of offset in a bar
-OffsetSize = PressSize * 8 # Represent a Cycle of music pattern
+CycleTimes = 8
+CycleLength = PressSize * CycleTimes # Represent a Cycle of music pattern
 OffsetStep = midi_util.OffsetStep
-OffsetBitSize = int(np.log2(OffsetSize))
+OffsetBitSize = int(np.log2(CycleLength))
 def prepare_sequences(data, sequence_length):
     """ Prepare the sequences used by the Neural Network """
     # create a dictionary to map pitches to integers
@@ -29,16 +30,16 @@ def prepare_sequences(data, sequence_length):
     for notes in data:
         key_sequence = np_utils.to_categorical([PitchTokey[note[0]] for note in notes], num_classes=KeySize) 
         press_sequence = np_utils.to_categorical([note[1] - 1 for note in notes], num_classes=PressSize) 
-        offset_sequence = np.unpackbits(np.array([[idx % OffsetSize] for idx, note in enumerate(notes)], dtype=np.uint8), axis=-1)[:,-OffsetBitSize:]
+        offset_sequence = np.unpackbits(np.array([[idx % CycleLength] for idx, note in enumerate(notes)], dtype=np.uint8), axis=-1)[:,-OffsetBitSize:]
 
-        for i in range(0, len(notes) - sequence_length - 1, 1):
+        for i in range(0, len(notes) - 2 * sequence_length, 1):
             key_sequence_in = key_sequence[i:i + sequence_length]
-            key_sequence_out = key_sequence[i + 1: i + sequence_length + 1]
+            key_sequence_out = key_sequence[i + sequence_length: i + 2 * sequence_length]
             keys_input.append(key_sequence_in)
             keys_output.append(key_sequence_out)
 
             press_sequence_in = press_sequence[i:i + sequence_length]
-            press_sequence_out = press_sequence[i + 1: i + sequence_length + 1]
+            press_sequence_out = press_sequence[i + sequence_length: i + 2 *sequence_length]
             press_input.append(press_sequence_in)
             press_output.append(press_sequence_out)
 
@@ -63,7 +64,7 @@ def prepare_sequences(data, sequence_length):
 
     return (keys_input, keys_output, offset_input, press_input, press_output)
 
-def generate_notes(model, key_data, press_data, offset_data):
+def generate_notes(model ,key_data, press_data, offset_data):
     """ Generate notes from the neural network based on a sequence of notes """
 
     # random pattern
@@ -88,12 +89,12 @@ def generate_notes(model, key_data, press_data, offset_data):
     # generate 512 offset
     for _ in range(512):
         # random modify the pattern to prevent looping
-        random_offset_index = np.random.randint(0, key_pattern.shape[0]-1)
-        random_pitch_index = np.random.randint(0, key_pattern.shape[1])
-        copy_pattern = np.copy(key_pattern)
-        copy_pattern[random_offset_index] = np_utils.to_categorical(random_pitch_index, num_classes=key_pattern.shape[1])
+        # random_offset_index = np.random.randint(0, key_pattern.shape[0]-1)
+        # random_pitch_index = np.random.randint(0, key_pattern.shape[1])
+        # copy_pattern = np.copy(key_pattern)
+        # copy_pattern[random_offset_index] = np_utils.to_categorical(random_pitch_index, num_classes=key_pattern.shape[1])
 
-        prediction_key_input = np.reshape(copy_pattern, (1, key_pattern.shape[0], key_pattern.shape[1]))
+        prediction_key_input = np.reshape(key_pattern, (1, key_pattern.shape[0], key_pattern.shape[1]))
         prediction_press_input = np.reshape(press_pattern, (1, press_pattern.shape[0], press_pattern.shape[1]))
         prediction_offset_input = np.reshape(offset_pattern, (1, offset_pattern.shape[0], offset_pattern.shape[1]))
         prediction_input = [prediction_key_input, prediction_press_input, prediction_offset_input]
@@ -115,13 +116,8 @@ def generate_notes(model, key_data, press_data, offset_data):
         #     predict_press = press_index + 1
         #     prediction_output.append((predict_pitch, predict_press))
 
-        key_onehot = key_prediction[-1]
-        press_onehot = press_prediction[-1]
-
-        # if press_index == 1 and np.random.uniform() < 0.15:
-        #     key_index = np.argsort(-prediction[0][0])[1]
-        # else:
-        #     key_index = np.argmax(prediction[0])
+        key_onehot = key_prediction[0]
+        press_onehot = press_prediction[0]
 
         key_index = np.argmax(key_onehot)
         press_index = np.argmax(press_onehot)
@@ -138,10 +134,11 @@ def generate_notes(model, key_data, press_data, offset_data):
         press_pattern[-1] = np.zeros_like(press_onehot)
         press_pattern[-1][press_index] = 1
 
-        # Not a correct way to shift the offset pattern
-        new_start_offset = (np.packbits(offset_pattern, axis=-1) // (2 ** (8 - OffsetBitSize)))[1][0]
-        offset_array = np.array([[(num + new_start_offset) % OffsetSize] for num in range(0, offset_pattern.shape[0])], dtype=np.uint8)
-        offset_pattern = np.unpackbits(offset_array, axis=-1)[:,-OffsetBitSize:]
+        new_offset_pattern = np.packbits(offset_pattern, axis=-1) // (2 ** (8 - OffsetBitSize)) # pack to int
+        new_offset_pattern = (new_offset_pattern + len(offset_pattern)) % CycleLength # shift
+        new_offset_pattern = np.unpackbits(new_offset_pattern, axis=-1) # unpack to 8 bits
+        offset_pattern = new_offset_pattern[:,-OffsetBitSize:] # select indices 1 ~ 7 bits (discard 0) as new pattern
+
 
     return prediction_output
 
