@@ -60,13 +60,15 @@ def create_2(sequence_length, key_size, press_size, offset_size, weights_path=No
 def create(sequence_length, key_size, press_size, offset_size, weights_path=None):
     key_input = Input(shape=(sequence_length, key_size))
     press_input = Input(shape=(sequence_length, press_size))
+    key2_input = Input(shape=(sequence_length, key_size))
+    press2_input = Input(shape=(sequence_length, press_size))
     offset_input = Input(shape=(sequence_length, offset_size))
 
     key_layer = Sequential()
     key_layer.add(LSTM(512, return_sequences=True))
     key_layer.add(Dropout(0.3))
-    key_layer.add(LSTM(512, return_sequences=True))
-    key_layer.add(TimeDistributed(Dense(256)))
+    key_layer.add(LSTM(256, return_sequences=True))
+    key_layer.add(TimeDistributed(Dense(128)))
     key_layer.add(Dropout(0.3))
     
     key_layer_input = Concatenate(axis=-1)([key_input, press_input, offset_input])
@@ -77,12 +79,20 @@ def create(sequence_length, key_size, press_size, offset_size, weights_path=None
     press_out = Dense(press_size)(key_info)
     press_out = Activation('softmax', name="press")(press_out)
 
+    key2_out = Dense(key_size)(key_info)
+    key2_out = Activation('softmax', name="key2")(key2_out)
+
+    press2_out = Dense(press_size)(key_info)
+    press2_out = Activation('softmax', name="press2")(press2_out)
+
     losses = {
         "key": "categorical_crossentropy",
-        "press" : "categorical_crossentropy"
+        "press" : "categorical_crossentropy",
+        "key2": "categorical_crossentropy",
+        "press2" : "categorical_crossentropy"
     }
 
-    model = Model(inputs=[key_input, press_input, offset_input], outputs=[key_out, press_out])
+    model = Model(inputs=[key_input, press_input, offset_input], outputs=[key_out, press_out, key2_out, press2_out])
     model.compile(loss=losses, optimizer='rmsprop')
 
     if weights_path:
@@ -90,7 +100,8 @@ def create(sequence_length, key_size, press_size, offset_size, weights_path=None
 
     return model
 
-def train(model, key_data, press_data, offset_data, key_target, press_target):
+def train(model, data, target):
+
     """ train the neural network """
     filepath = "weights/weights-{epoch:02d}-{loss:.4f}.hdf5"
     checkpoint = ModelCheckpoint(
@@ -102,7 +113,7 @@ def train(model, key_data, press_data, offset_data, key_target, press_target):
     )
     callbacks_list = [checkpoint]
 
-    model.fit(x=[key_data, press_data, offset_data], y=[key_target, press_target], epochs=1000, batch_size=512, callbacks=callbacks_list)
+    model.fit(x=data, y=target, epochs=1, batch_size=512, callbacks=callbacks_list)
 
 def keys_binary_crossentropy(y_true, y_pred):
 

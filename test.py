@@ -77,25 +77,39 @@ def analysis_by_measures():
     # pitchesTable = [pitch.Pitch(ps) for ps in range(17, 88)]
     # print(len(pitchesTable))
     
-    melody = midi_file.parts[0]
-    # accomp = midi_file.parts[1]
+    melody = midi_file.parts[0].measures(0, None, collect="Measure")
+    accomp = midi_file.parts[1].measures(0, None, collect="Measure")
 
-    for measure in melody.measures(0, None, collect="Measure"):
+    for measure in zip(melody, accomp):
         print(measure)
 
-        notes_to_parse = measure.recurse().notesAndRests
-        offset_iter = stream.iterator.OffsetIterator(notes_to_parse)
+        melody_to_parse = measure[0].recurse().notesAndRests
+        accomp_to_parse = measure[1].recurse().notesAndRests
 
-        for element_group in offset_iter:
-            element = element_group[0]
-            if isinstance(element, note.Rest):
+        melody_offset_iter = stream.iterator.OffsetIterator(melody_to_parse)
+        accomp_offset_iter = stream.iterator.OffsetIterator(accomp_to_parse)
+
+        for element_group1, element_group2 in zip(melody_offset_iter, accomp_offset_iter):
+            element1 = element_group1[0]
+            element2 = element_group2[0]
+
+            if isinstance(element1, note.Rest):
                 ps = 0
-            elif isinstance(element, note.Note):
-                ps = element.pitch.ps
-            elif isinstance(element, chord.Chord):
-                ps = element.pitches[0].ps
+            elif isinstance(element1, note.Note):
+                ps = element1.pitch.ps
+            elif isinstance(element1, chord.Chord):
+                ps = element1.pitches[0].ps
 
-            print("offset:{} pitch space:{} duarion:{}".format(element.offset, ps, element.duration.quarterLength))
+            print("offset:{} pitch space:{} duarion:{}".format(element1.offset, ps, element1.duration.quarterLength))
+            
+            if isinstance(element2, note.Rest):
+                ps = 0
+            elif isinstance(element2, note.Note):
+                ps = element2.pitch.ps
+            elif isinstance(element2, chord.Chord):
+                ps = element2.pitches[0].ps
+
+            print("offset:{} pitch space:{} duarion:{}".format(element2.offset, ps, element2.duration.quarterLength))
 
 
     # print(type(midi_file.parts[0]))

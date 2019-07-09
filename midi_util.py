@@ -9,56 +9,70 @@ PitchMax = 96 #C7
 OffsetStep = 0.25
 OffsetMax = 4.0
 
-def parse_midi(midi_path, save_path=None, part_index=0):
+def element_to_note(element, measure_len, offset_index, max_flag):
+
+    if isinstance(element, note.Note):
+        pitch_space = element.pitch.ps
+    elif isinstance(element, chord.Chord):
+        if max_flag:
+            pitch_space = max([pitch.ps for pitch in element.pitches])
+        else:
+            pitch_space = min([pitch.ps for pitch in element.pitches])
+    else: #Rest
+        pitch_space = 0
+
+    if pitch_space < PitchMin or pitch_space > PitchMax:
+        pitch_space = 0
+
+    # Represent Continuity
+    press_array = np.array(range(offset_index, measure_len))
+    press_array = press_array - offset_index + 1
+
+    return pitch_space, press_array
+
+def parse_midi(midi_path, save_path=None):
     """ Get all the notes and chords from the midi files in the ./midi_songs directory """
     print("Parsing {}".format(midi_path))
     midi_file = converter.parse(midi_path)
     midi_file = to_major(midi_file, "C")
 
-    if midi_file.parts: # file has multi-parts
-        melody = midi_file.parts[part_index]
-    else: # file has notes in a flat structure
-        melody = midi_file.flat
-
     try:
-        measures = melody.measures(0, None, collect="Measure")
+        melody = midi_file.parts[0].measures(0, None, collect="Measure")
+        accomp = midi_file.parts[1].measures(0, None, collect="Measure")
     except:
         print("Unavailable Midi {}".format(midi_path))
         return False
 
     notes = []
 
-    for measure in measures:
-        offset_iter = stream.iterator.OffsetIterator(measure.recurse().notesAndRests)
+    for measure in zip(melody, accomp):
+
+        melody_iter = stream.iterator.OffsetIterator(measure[0].recurse().notesAndRests)
+        accomp_iter = stream.iterator.OffsetIterator(measure[1].recurse().notesAndRests)
+
         measure_len = int(OffsetMax / OffsetStep)
-        measure_pitches = np.zeros(measure_len)
-        measure_press = np.ones(measure_len)
+        melody_pitches = np.zeros(measure_len)
+        melody_press = np.ones(measure_len)
+        accomp_pitches = np.zeros(measure_len)
+        accomp_press = np.ones(measure_len)
 
-        for element_group in offset_iter:
-            offset = element_group[0].offset
+        for melody_group, accomp_group in zip(melody_iter, accomp_iter):
+            element1 = melody_group[0]
+            element2 = accomp_group[0]
 
-            if offset % OffsetStep != 0:
-                continue
-            offset_index = int(offset // OffsetStep)
+            if element1.offset % OffsetStep == 0:
+                offset_index = int(element1.offset // OffsetStep)
+                pitch_space, press_array = element_to_note(element1, measure_len, offset_index, max_flag=True)
+                melody_pitches[offset_index:] = pitch_space
+                melody_press[offset_index:] = press_array
 
-            element = element_group[0]
-            if isinstance(element, note.Note):
-                pitch_space = element.pitch.ps
-            elif isinstance(element, chord.Chord):
-                pitch_space = max([pitch.ps for pitch in element.pitches])
-            else: #Rest
-                pitch_space = 0
+            if element2.offset % OffsetStep == 0:
+                offset_index = int(element2.offset // OffsetStep)
+                pitch_space, press_array = element_to_note(element2, measure_len, offset_index, max_flag=False)
+                accomp_pitches[offset_index:] = pitch_space
+                accomp_press[offset_index:] = press_array
 
-            if pitch_space < PitchMin or pitch_space > PitchMax:
-                pitch_space = 0
-
-            # Represent Continuity
-            measure_pitches[offset_index:] = pitch_space
-            measure_press[offset_index:] = np.array(range(offset_index, measure_len))
-            measure_press[offset_index:] = measure_press[offset_index:] - offset_index + 1
-
-        measure_notes = np.stack((measure_pitches, measure_press), axis=-1)
-
+        measure_notes = np.stack((melody_pitches, melody_press, accomp_pitches, accomp_press), axis=-1)
         notes.extend(measure_notes)
 
     if save_path:

@@ -9,7 +9,7 @@ import network
 import midi_util
 from data_process import *
 
-def prepare_melody_data(midi_folder="midi_songs/4-4/", save_folder="midi_input/"):
+def prepare_data(midi_folder="midi_songs/4-4/", save_folder="midi_input/"):
     melody_data = []
 
     for midi_path in glob.glob(midi_folder + "*.mid"):
@@ -20,7 +20,7 @@ def prepare_melody_data(midi_folder="midi_songs/4-4/", save_folder="midi_input/"
         if glob.glob(file_path):
             melody_data.append(midi_util.load_data(file_path))
         else:
-            notes = midi_util.parse_midi(midi_path, file_path, part_index=0)
+            notes = midi_util.parse_midi(midi_path, file_path)
             if notes:
                 melody_data.append(notes)
     return melody_data
@@ -34,25 +34,27 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     # parse midi songs to notes file
-    melody_data = prepare_melody_data()
+    data = prepare_data()
 
-    sequence_length = 16
-    key_data, key_target, offset_data, press_data, press_target = prepare_sequences(melody_data, sequence_length)
+    sequence_length = 64
 
     if args.weights:
-        melody_model, encoder, decoder = network.create_2(sequence_length, KeySize, PressSize, OffsetBitSize, weights_path=args.weights)
+        melody_model = network.create(sequence_length, KeySize, PressSize, OffsetBitSize, weights_path=args.weights)
     else:
-        melody_model, encoder, decoder = network.create_2(sequence_length, KeySize, PressSize, OffsetBitSize, weights_path=None)
-        # random_z = np.random.uniform(0, 1, (1, 128))
-        # prediction = decoder.predict(random_z)
+        melody_model = network.create(sequence_length, KeySize, PressSize, OffsetBitSize, weights_path=None)
         if args.generate:
             print('Warning: generating music without trained weights')
 
     if args.train:
-        print('training...')
-        network.train(melody_model, key_data, press_data, offset_data, key_target, press_target)
+        for epoch in range(1000):
+            print('preparing sequence...')
+            train_data, train_target = prepare_sequences(data, sequence_length)
+            print('training...')
+            network.train(melody_model, train_data, train_target)
 
     if args.generate:
+        print('preparing sequence...')
+        train_data, train_target = prepare_sequences(data, sequence_length)
         print('generating...')
-        prediction_output = generate_notes(encoder, decoder)
+        prediction_output = generate_notes(melody_model, train_data)
         create_midi(prediction_output)
