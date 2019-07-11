@@ -9,7 +9,7 @@ PitchMax = 96 #C7
 OffsetStep = 0.25
 OffsetMax = 4.0
 
-def element_to_note(element, measure_len, offset_index, max_flag):
+def element_to_note(element, max_flag):
 
     if isinstance(element, note.Note):
         pitch_space = element.pitch.ps
@@ -24,11 +24,7 @@ def element_to_note(element, measure_len, offset_index, max_flag):
     if pitch_space < PitchMin or pitch_space > PitchMax:
         pitch_space = 0
 
-    # Represent Continuity
-    press_array = np.array(range(offset_index, measure_len))
-    press_array = press_array - offset_index + 1
-
-    return pitch_space, press_array
+    return pitch_space
 
 def parse_midi(midi_path, save_path=None):
     """ Get all the notes and chords from the midi files in the ./midi_songs directory """
@@ -56,19 +52,23 @@ def parse_midi(midi_path, save_path=None):
         accomp_pitches = np.zeros(measure_len)
         accomp_press = np.ones(measure_len)
 
-        for melody_group, accomp_group in zip(melody_iter, accomp_iter):
+        for melody_group in melody_iter:
             element1 = melody_group[0]
-            element2 = accomp_group[0]
-
-            if element1.offset % OffsetStep == 0:
+            if element1.offset % OffsetStep == 0 and element1.offset < OffsetMax:
                 offset_index = int(element1.offset // OffsetStep)
-                pitch_space, press_array = element_to_note(element1, measure_len, offset_index, max_flag=True)
+                pitch_space = element_to_note(element1, max_flag=True)
+                press_array = np.array(range(offset_index, measure_len))
+                press_array = press_array - offset_index + 1
                 melody_pitches[offset_index:] = pitch_space
                 melody_press[offset_index:] = press_array
 
-            if element2.offset % OffsetStep == 0:
+        for accomp_group in accomp_iter:
+            element2 = accomp_group[0]
+            if element2.offset % OffsetStep == 0 and element2.offset < OffsetMax:
                 offset_index = int(element2.offset // OffsetStep)
-                pitch_space, press_array = element_to_note(element2, measure_len, offset_index, max_flag=False)
+                pitch_space = element_to_note(element2, max_flag=False)
+                press_array = np.array(range(offset_index, measure_len))
+                press_array = press_array - offset_index + 1
                 accomp_pitches[offset_index:] = pitch_space
                 accomp_press[offset_index:] = press_array
 

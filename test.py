@@ -72,7 +72,7 @@ def analysis_test():
     midi_stream.write('midi', fp='test.mid')
 
 def analysis_by_measures():
-    midi_file = converter.parse("midi_songs/4-4/Sonata_for_a_Night_Under_the_Stars.mscz.mid")
+    midi_file = converter.parse("midi_songs/4-4/Vampires_Lullaby.mid")
     
     # pitchesTable = [pitch.Pitch(ps) for ps in range(17, 88)]
     # print(len(pitchesTable))
@@ -82,7 +82,6 @@ def analysis_by_measures():
 
     for measure in zip(melody, accomp):
         print(measure)
-
         melody_to_parse = measure[0].recurse().notesAndRests
         accomp_to_parse = measure[1].recurse().notesAndRests
 

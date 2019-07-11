@@ -5,94 +5,31 @@ import keras.backend as K
 import tensorflow as tf
 import numpy as np
 
-def create_2(sequence_length, key_size, press_size, offset_size, weights_path=None):
+def create_molody_model(sequence_length, key_size, press_size, offset_size, weights_path=None):
     key_input = Input(shape=(sequence_length, key_size))
     press_input = Input(shape=(sequence_length, press_size))
     offset_input = Input(shape=(sequence_length, offset_size))
 
-    encoder_input = Concatenate(axis=-1)([key_input, press_input, offset_input])
-    encoder = Sequential()
-    encoder.add(LSTM(512, return_sequences=True))
-    encoder.add(Dropout(0.3))
-    encoder.add(LSTM(256))
-    encoder.add(Dropout(0.3))
-    encoder.add(Dense(128))
-    encoder.add(Activation("sigmoid"))
-
-    latent_z = encoder(encoder_input)
-
-    decoder_input = Input(shape=(128,))
-    decoder = Sequential()
-    decoder.add(RepeatVector(sequence_length))
-    decoder.add(LSTM(256, return_sequences=True))
-    decoder.add(Dropout(0.3))
-    decoder.add(LSTM(512, return_sequences=True))
-    decoder.add(Dropout(0.3))
-
-    KeyTD = TimeDistributed(Dense(key_size))
-    keySoftmax = Activation("softmax", name="key")
-    key_out = keySoftmax(KeyTD(decoder(latent_z)))
-
-    PressTD = TimeDistributed(Dense(press_size))
-    PressSoftmax = Activation("softmax", name="press")
-    press_out = PressSoftmax(PressTD(decoder(latent_z)))
+    key_layer = Sequential()
+    key_layer.add(LSTM(512, return_sequences=True))
+    key_layer.add(Dropout(0.2))
+    key_layer.add(LSTM(256, return_sequences=True))
+    key_layer.add(TimeDistributed(Dense(128)))
+    key_layer.add(Dropout(0.2))
+    
+    key_layer_input = Concatenate(axis=-1)([key_input, press_input, offset_input])
+    key_info = key_layer(key_layer_input)
+    key_out = Dense(key_size)(key_info)
+    key_out = Activation('softmax', name="key")(key_out)
+    press_out = Dense(press_size)(key_info)
+    press_out = Activation('softmax', name="press")(press_out)
 
     losses = {
         "key": "categorical_crossentropy",
         "press" : "categorical_crossentropy"
     }
 
-    train_model = Model(inputs=[key_input, press_input, offset_input], outputs=[key_out, press_out])
-    train_model.compile(loss=losses, optimizer='rmsprop')
-
-    key_out = keySoftmax(KeyTD(decoder(decoder_input)))
-    press_out = PressSoftmax(PressTD(decoder(decoder_input)))
-
-    encoder_model = Model(inputs=[key_input, press_input, offset_input], outputs=[latent_z])
-    decoder_model = Model(inputs=[decoder_input], outputs=[key_out, press_out])
-
-    if weights_path:
-        train_model.load_weights(weights_path)
-
-    return train_model, encoder_model, decoder_model
-
-
-def create(sequence_length, key_size, press_size, offset_size, weights_path=None):
-    key_input = Input(shape=(sequence_length, key_size))
-    press_input = Input(shape=(sequence_length, press_size))
-    key2_input = Input(shape=(sequence_length, key_size))
-    press2_input = Input(shape=(sequence_length, press_size))
-    offset_input = Input(shape=(sequence_length, offset_size))
-
-    key_layer = Sequential()
-    key_layer.add(LSTM(512, return_sequences=True))
-    key_layer.add(Dropout(0.3))
-    key_layer.add(LSTM(256, return_sequences=True))
-    key_layer.add(TimeDistributed(Dense(128)))
-    key_layer.add(Dropout(0.3))
-    
-    key_layer_input = Concatenate(axis=-1)([key_input, press_input, offset_input])
-    key_info = key_layer(key_layer_input)
-    key_out = Dense(key_size)(key_info)
-    key_out = Activation('softmax', name="key")(key_out)
-
-    press_out = Dense(press_size)(key_info)
-    press_out = Activation('softmax', name="press")(press_out)
-
-    key2_out = Dense(key_size)(key_info)
-    key2_out = Activation('softmax', name="key2")(key2_out)
-
-    press2_out = Dense(press_size)(key_info)
-    press2_out = Activation('softmax', name="press2")(press2_out)
-
-    losses = {
-        "key": "categorical_crossentropy",
-        "press" : "categorical_crossentropy",
-        "key2": "categorical_crossentropy",
-        "press2" : "categorical_crossentropy"
-    }
-
-    model = Model(inputs=[key_input, press_input, offset_input], outputs=[key_out, press_out, key2_out, press2_out])
+    model = Model(inputs=[key_input, press_input, offset_input], outputs=[key_out, press_out])
     model.compile(loss=losses, optimizer='rmsprop')
 
     if weights_path:
@@ -100,10 +37,41 @@ def create(sequence_length, key_size, press_size, offset_size, weights_path=None
 
     return model
 
-def train(model, data, target):
 
-    """ train the neural network """
-    filepath = "weights/weights-{epoch:02d}-{loss:.4f}.hdf5"
+def create_accomp_model(sequence_length, key_size, press_size, offset_size, weights_path=None):
+    key_input = Input(shape=(sequence_length, key_size))
+    press_input = Input(shape=(sequence_length, press_size))
+    offset_input = Input(shape=(sequence_length, offset_size))
+
+    key2_layer = Sequential()
+    key2_layer.add(LSTM(512, return_sequences=True))
+    key2_layer.add(Dropout(0.25))
+    key2_layer.add(LSTM(256, return_sequences=True))
+    key2_layer.add(TimeDistributed(Dense(128)))
+    key2_layer.add(Dropout(0.25))
+    
+    key2_layer_input = Concatenate(axis=-1)([key_input, press_input, offset_input])
+    key2_info = key2_layer(key2_layer_input)
+    key2_out = Dense(key_size)(key2_info)
+    key2_out = Activation('softmax', name="key2")(key2_out)
+    press2_out = Dense(press_size)(key2_info)
+    press2_out = Activation('softmax', name="press2")(press2_out)
+
+    losses = {
+        "key2": "categorical_crossentropy",
+        "press2" : "categorical_crossentropy"
+    }
+
+    model = Model(inputs=[key_input, press_input, offset_input], outputs=[key2_out, press2_out])
+    model.compile(loss=losses, optimizer='rmsprop')
+
+    if weights_path:
+        model.load_weights(weights_path)
+
+    return model
+
+def train(model, epoch, data, target, model_name):
+    filepath = "weights/"+ model_name + "-"+ str(epoch) +"-{loss:.4f}.hdf5"
     checkpoint = ModelCheckpoint(
         filepath,
         monitor='loss',
@@ -116,7 +84,6 @@ def train(model, data, target):
     model.fit(x=data, y=target, epochs=1, batch_size=512, callbacks=callbacks_list)
 
 def keys_binary_crossentropy(y_true, y_pred):
-
     press_true_mask = K.greater_equal(y_true, 0.5)
     press_pred_mask = K.greater_equal(y_pred, 0.5)
     press_mask = K.cast(K.any(K.stack([press_true_mask, press_pred_mask], axis=0), axis=0), K.floatx())

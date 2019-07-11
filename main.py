@@ -30,7 +30,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Music Generator by LSTM')
     parser.add_argument('--train', action='store_true', help='train the music generator')
     parser.add_argument('--generate', action='store_true', help='generate the music')
-    parser.add_argument('--weights', type=str, help='weights path')
+    parser.add_argument('--melody_weights', type=str, help='melody weights path')
+    parser.add_argument('--accomp_weights', type=str, help='accomp weights path')
     args = parser.parse_args()
 
     # parse midi songs to notes file
@@ -38,23 +39,34 @@ if __name__ == '__main__':
 
     sequence_length = 64
 
-    if args.weights:
-        melody_model = network.create(sequence_length, KeySize, PressSize, OffsetBitSize, weights_path=args.weights)
+    if args.melody_weights:
+        melody_model = network.create_molody_model(sequence_length, KeySize, PressSize, OffsetBitSize, weights_path=args.melody_weights)
     else:
-        melody_model = network.create(sequence_length, KeySize, PressSize, OffsetBitSize, weights_path=None)
+        melody_model = network.create_molody_model(sequence_length, KeySize, PressSize, OffsetBitSize, weights_path=None)
+        if args.generate:
+            print('Warning: generating music without trained weights')
+
+    if args.accomp_weights:
+        accomp_model = network.create_accomp_model(sequence_length, KeySize, PressSize, OffsetBitSize, weights_path=args.accomp_weights)
+    else:
+        accomp_model = network.create_accomp_model(sequence_length, KeySize, PressSize, OffsetBitSize, weights_path=None)
         if args.generate:
             print('Warning: generating music without trained weights')
 
     if args.train:
         for epoch in range(1000):
             print('preparing sequence...')
-            train_data, train_target = prepare_sequences(data, sequence_length)
-            print('training...')
-            network.train(melody_model, train_data, train_target)
+            train_data, melody_target, accomp_target = prepare_sequences(data, sequence_length, modify_num=0)
+            print('Epoch: {} melody training...'.format(epoch))
+            network.train(melody_model, epoch, train_data, melody_target, model_name="Melody")
+            print('preparing sequence...')
+            train_data, melody_target, accomp_target = prepare_sequences(data, sequence_length, modify_num=0)
+            print('Epoch: {} Accomp training...'.format(epoch))
+            network.train(accomp_model, epoch, train_data, accomp_target, model_name="Accomp")
 
     if args.generate:
         print('preparing sequence...')
-        train_data, train_target = prepare_sequences(data, sequence_length)
+        train_data, melody_target, accomp_target = prepare_sequences(data, sequence_length)
         print('generating...')
-        prediction_output = generate_notes(melody_model, train_data)
-        create_midi(prediction_output)
+        melody_output, accomp_output = generate_notes(melody_model, accomp_model, train_data)
+        create_midi(melody_output, accomp_output)
