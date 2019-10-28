@@ -4,6 +4,8 @@ from keras.callbacks import ModelCheckpoint
 import keras.backend as K
 import tensorflow as tf
 import numpy as np
+from focal_losses import *
+
 
 def create_melody_model(sequence_length, key_size, press_size, offset_size, weights_path=None):
     key_input = Input(shape=(sequence_length, key_size))
@@ -32,8 +34,8 @@ def create_melody_model(sequence_length, key_size, press_size, offset_size, weig
     press_out = Activation('softmax', name="press")(press_out)
 
     losses = {
-        "key": "categorical_crossentropy",
-        "press" : "categorical_crossentropy"
+        "key": categorical_focal_loss(),
+        "press" : categorical_focal_loss()
     }
 
     model = Model(inputs=[key_input, press_input, offset_input], outputs=[key_out, press_out])
@@ -72,8 +74,8 @@ def create_accomp_model(sequence_length, key_size, press_size, offset_size, weig
     press2_out = Activation('softmax', name="press2")(press2_out)
 
     losses = {
-        "key2": "categorical_crossentropy",
-        "press2" : "categorical_crossentropy"
+        "key2": categorical_focal_loss(),
+        "press2" : categorical_focal_loss()
     }
 
     model = Model(inputs=[key_input, press_input, offset_input, accomp_input], outputs=[key2_out, press2_out])
