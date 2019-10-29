@@ -7,12 +7,11 @@ import numpy as np
 from focal_losses import *
 
 
-def create_melody_model(sequence_length, key_size, press_size, offset_size, weights_path=None):
+def create_melody_model(sequence_length, key_size, offset_size, weights_path=None):
     key_input = Input(shape=(sequence_length, key_size))
-    press_input = Input(shape=(sequence_length, press_size))
     offset_input = Input(shape=(sequence_length, offset_size))
 
-    key_layer_input = Concatenate(axis=-1)([key_input, press_input, offset_input])
+    key_layer_input = Concatenate(axis=-1)([key_input, offset_input])
     key_layer = Sequential()
     key_layer.add(LSTM(512, return_sequences=True))
     key_layer.add(Dropout(0.2))
@@ -21,24 +20,13 @@ def create_melody_model(sequence_length, key_size, press_size, offset_size, weig
     key_layer.add(Dropout(0.2))
     key_info = key_layer(key_layer_input)
     key_out = Dense(key_size)(key_info)
-    key_out = Activation('softmax', name="key")(key_out)
-
-    press_layer = Sequential()
-    press_layer.add(LSTM(256, return_sequences=True))
-    press_layer.add(Dropout(0.2))
-    press_layer.add(LSTM(128, return_sequences=True))
-    press_layer.add(TimeDistributed(Dense(64)))
-    press_layer.add(Dropout(0.2))
-    press_info = press_layer(key_info)
-    press_out = Dense(press_size)(press_info)
-    press_out = Activation('softmax', name="press")(press_out)
+    key_out = Activation('sigmoid', name="key")(key_out)
 
     losses = {
-        "key": categorical_focal_loss(),
-        "press" : categorical_focal_loss()
+        "key": binary_focal_loss(),
     }
 
-    model = Model(inputs=[key_input, press_input, offset_input], outputs=[key_out, press_out])
+    model = Model(inputs=[key_input, offset_input], outputs=[key_out])
     model.compile(loss=losses, optimizer='rmsprop')
 
     if weights_path:
@@ -46,13 +34,12 @@ def create_melody_model(sequence_length, key_size, press_size, offset_size, weig
 
     return model
 
-def create_accomp_model(sequence_length, key_size, press_size, offset_size, weights_path=None):
+def create_accomp_model(sequence_length, key_size, offset_size, weights_path=None):
     key_input = Input(shape=(sequence_length, key_size))
-    press_input = Input(shape=(sequence_length, press_size))
     offset_input = Input(shape=(sequence_length, offset_size))
     accomp_input = Input(shape=(sequence_length, key_size))
 
-    key2_layer_input = Concatenate(axis=-1)([key_input, press_input, offset_input, accomp_input])
+    key2_layer_input = Concatenate(axis=-1)([key_input, offset_input, accomp_input])
     key2_layer = Sequential()
     key2_layer.add(LSTM(512, return_sequences=True))
     key2_layer.add(Dropout(0.2))
@@ -61,24 +48,13 @@ def create_accomp_model(sequence_length, key_size, press_size, offset_size, weig
     key2_layer.add(Dropout(0.2))
     key2_info = key2_layer(key2_layer_input)
     key2_out = Dense(key_size)(key2_info)
-    key2_out = Activation('softmax', name="key2")(key2_out)
-
-    press2_layer = Sequential()
-    press2_layer.add(LSTM(256, return_sequences=True))
-    press2_layer.add(Dropout(0.2))
-    press2_layer.add(LSTM(128, return_sequences=True))
-    press2_layer.add(TimeDistributed(Dense(64)))
-    press2_layer.add(Dropout(0.2))
-    press2_info = press2_layer(key2_info)
-    press2_out = Dense(press_size)(press2_info)
-    press2_out = Activation('softmax', name="press2")(press2_out)
+    key2_out = Activation('sigmoid', name="key2")(key2_out)
 
     losses = {
-        "key2": categorical_focal_loss(),
-        "press2" : categorical_focal_loss()
+        "key2": binary_focal_loss(),
     }
 
-    model = Model(inputs=[key_input, press_input, offset_input, accomp_input], outputs=[key2_out, press2_out])
+    model = Model(inputs=[key_input, offset_input, accomp_input], outputs=[key2_out])
     model.compile(loss=losses, optimizer='rmsprop')
 
     if weights_path:

@@ -35,21 +35,22 @@ if __name__ == '__main__':
 
     # parse midi songs to notes file
     data = prepare_data()
-
+    
     sequence_length = 64
 
     if args.weights:
-        melody_model = network.create_melody_model(sequence_length, KeySize, PressSize, OffsetBitSize, weights_path=args.weights + "Melody.hdf5")
-        accomp_model = network.create_accomp_model(sequence_length, KeySize, PressSize, OffsetBitSize, weights_path=args.weights + "Accomp.hdf5")
+        melody_model = network.create_melody_model(sequence_length, PitchSize, OffsetBitSize, weights_path=args.weights + "Melody.hdf5")
+        accomp_model = network.create_accomp_model(sequence_length, PitchSize, OffsetBitSize, weights_path=args.weights + "Accomp.hdf5")
     else:
-        melody_model = network.create_melody_model(sequence_length, KeySize, PressSize, OffsetBitSize, weights_path=None)
-        accomp_model = network.create_accomp_model(sequence_length, KeySize, PressSize, OffsetBitSize, weights_path=None)
+        melody_model = network.create_melody_model(sequence_length, PitchSize, OffsetBitSize, weights_path=None)
+        accomp_model = network.create_accomp_model(sequence_length, PitchSize, OffsetBitSize, weights_path=None)
         if args.generate:
             print('Warning: generating music without trained weights')
 
     print('preparing sequence...')
     melody_data, melody_target = prepare_melody_sequences(data, sequence_length, modify_num=0)
     accomp_data, accomp_target = prepare_accomp_sequences(data, sequence_length, modify_num=0)
+
 
     if args.train:
         for epoch in range(1000):
@@ -59,7 +60,7 @@ if __name__ == '__main__':
             print('Epoch: {} Accomp training...'.format(epoch))
             network.train(accomp_model, epoch, accomp_data, accomp_target, model_name="Accomp")
 
-            if epoch % 10 == 0:
+            if epoch % 2 == 0:
                 print('generating...')
                 melody_output, accomp_output = generate_notes(melody_model, accomp_model, accomp_data)
                 create_midi(melody_output, accomp_output, "training midi-{}".format(epoch))
