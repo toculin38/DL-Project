@@ -5,7 +5,7 @@ import numpy as np
 import os
 from music21 import converter, instrument, note, chord, stream
 
-import network
+import gan_network
 import midi_util
 from data_process import *
 
@@ -35,37 +35,32 @@ if __name__ == '__main__':
 
     # parse midi songs to notes file
     data = prepare_data()
-    
+
     sequence_length = 64
 
     if args.weights:
-        melody_model = network.create_melody_model(sequence_length, PitchSize, OffsetBitSize, weights_path=args.weights + "Melody.hdf5")
-        accomp_model = network.create_accomp_model(sequence_length, PitchSize, OffsetBitSize, weights_path=args.weights + "Accomp.hdf5")
+        g_model = gan_network.create_generate_model(PitchSize, weights_path=args.weights + "G.hdf5")
+        d_model = gan_network.create_discrimi_model(PitchSize, weights_path=args.weights + "D.hdf5")
     else:
-        melody_model = network.create_melody_model(sequence_length, PitchSize, OffsetBitSize, weights_path=None)
-        accomp_model = network.create_accomp_model(sequence_length, PitchSize, OffsetBitSize, weights_path=None)
+        g_model = gan_network.create_generate_model(PitchSize, weights_path=None)
+        d_model = gan_network.create_discrimi_model(PitchSize, weights_path=None)
         if args.generate:
             print('Warning: generating music without trained weights')
 
-    print('preparing sequence...')
-    melody_data, melody_target = prepare_melody_sequences(data, sequence_length, modify_num=0)
-    accomp_data, accomp_target = prepare_accomp_sequences(data, sequence_length, modify_num=0)
-
+    print("preparing sequences..")
+    seq_data = prepare_song_sequences(data)
 
     if args.train:
         for epoch in range(1000):
-            print('Epoch: {} melody training...'.format(epoch))
+            print('Epoch: {} GAN training...'.format(epoch))
+            gan_network.train(g_model, d_model, epoch, seq_data, g_name="G", d_name="D")
 
-            network.train(melody_model, epoch, melody_data, melody_target, model_name="Melody")
-            print('Epoch: {} Accomp training...'.format(epoch))
-            network.train(accomp_model, epoch, accomp_data, accomp_target, model_name="Accomp")
-
-            if epoch % 2 == 0:
+            if epoch % 1 == 0:
                 print('generating...')
-                melody_output, accomp_output = generate_notes(melody_model, accomp_model, accomp_data)
-                create_midi(melody_output, accomp_output, "training midi-{}".format(epoch))
+                melody, accomp = gan_network.generate(g_model)
+                create_midi(melody[0], accomp[0], "training midi-{}".format(epoch))
 
     if args.generate:
         print('generating...')
-        melody_output, accomp_output = generate_notes(melody_model, accomp_model, accomp_data)
-        create_midi(melody_output, accomp_output)
+        melody, accomp = gan_network.generate(g_model)
+        create_midi(melody[0], accomp[0])

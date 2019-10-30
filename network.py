@@ -2,10 +2,8 @@ from keras.models import Sequential, Model
 from keras.layers import Activation, Concatenate, Dropout, LSTM, Dense, Input, TimeDistributed, RepeatVector, Bidirectional, Lambda
 from keras.callbacks import ModelCheckpoint
 import keras.backend as K
-import tensorflow as tf
 import numpy as np
 from focal_losses import *
-
 
 def create_melody_model(sequence_length, key_size, offset_size, weights_path=None):
     key_input = Input(shape=(sequence_length, key_size))
@@ -74,23 +72,3 @@ def train(model, epoch, data, target, model_name, batch_size=1024):
     callbacks_list = [checkpoint]
 
     model.fit(x=data, y=target, epochs=1, batch_size=batch_size, callbacks=callbacks_list)
-
-def keys_binary_crossentropy(y_true, y_pred):
-    press_true_mask = K.greater_equal(y_true, 0.5)
-    press_pred_mask = K.greater_equal(y_pred, 0.5)
-    press_mask = K.cast(K.any(K.stack([press_true_mask, press_pred_mask], axis=0), axis=0), K.floatx())
-
-    press_true = tf.multiply(y_true, press_mask)
-    press_pred = tf.multiply(y_pred, press_mask)
-
-    # empty_true_mask = K.less(y_true, threshhold)
-    # empty_pred_mask = K.less(y_pred, threshhold)
-    # empty_mask = K.cast(K.any(K.stack([empty_true_mask, empty_pred_mask], axis=-1), axis=-1), K.floatx())
-
-    # empty_true = tf.multiply(y_true, empty_mask)
-    # empty_pred = tf.multiply(y_pred, empty_mask)
-
-    # press_loss = K.mean(K.binary_crossentropy(press_true, press_pred), axis=-1)
-    # empty_loss = K.mean(K.binary_crossentropy(empty_true, empty_pred), axis=-1)
-
-    return K.sum(K.binary_crossentropy(press_true, press_pred), axis=-1) / K.sum(press_mask, -1)
