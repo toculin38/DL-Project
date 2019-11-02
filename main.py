@@ -27,6 +27,7 @@ def prepare_data(midi_folder="midi_songs/4-4/", save_folder="midi_input/"):
 
 
 if __name__ == '__main__':
+
     parser = argparse.ArgumentParser(description='Music Generator by LSTM')
     parser.add_argument('--train', action='store_true', help='train the music generator')
     parser.add_argument('--generate', action='store_true', help='generate the music')
@@ -35,32 +36,44 @@ if __name__ == '__main__':
 
     # parse midi songs to notes file
     data = prepare_data()
-
-    sequence_length = 64
+    
+    sequence_length = 32
 
     if args.weights:
-        g_model = gan_network.create_generate_model(PitchSize, weights_path=args.weights + "G.hdf5")
-        d_model = gan_network.create_discrimi_model(PitchSize, weights_path=args.weights + "D.hdf5")
+        GAN_model, d_model , g_model = gan_network.build_GAN(KeySize, sequence_length, d_path=args.weights + "D.hdf5", g_path=args.weights + "G.hdf5")
     else:
-        g_model = gan_network.create_generate_model(PitchSize, weights_path=None)
-        d_model = gan_network.create_discrimi_model(PitchSize, weights_path=None)
+        GAN_model, d_model , g_model = gan_network.build_GAN(KeySize, sequence_length)
+
         if args.generate:
             print('Warning: generating music without trained weights')
 
     print("preparing sequences..")
-    seq_data = prepare_song_sequences(data)
+    songs = prepare_song_sequences(data, sequence_length)
+
+    def test_song(index):
+        song = songs[index]
+        
+        melody = np.concatenate(np.array([song_batch[0] for song_batch in song]))
+        accomp = np.concatenate(np.array([song_batch[1] for song_batch in song]))
+
+        melody = np.concatenate(melody) # (N, 1) to (N,)
+        accomp = np.concatenate(accomp) # (N, 1) to (N,)
+
+        create_midi(melody, accomp)
+
+    test_song(5)
 
     if args.train:
         for epoch in range(1000):
             print('Epoch: {} GAN training...'.format(epoch))
-            gan_network.train(g_model, d_model, epoch, seq_data, g_name="G", d_name="D")
+            gan_network.train(GAN_model, g_model, d_model, epoch, songs, sequence_length, g_name="G", d_name="D")
 
             if epoch % 1 == 0:
                 print('generating...')
-                melody, accomp = gan_network.generate(g_model)
-                create_midi(melody[0], accomp[0], "training midi-{}".format(epoch))
+                melody, accomp = gan_network.generate(g_model, sequence_length)
+                create_midi(melody, accomp, "training midi-{}".format(epoch))
 
     if args.generate:
-        print('generating...')
-        melody, accomp = gan_network.generate(g_model)
-        create_midi(melody[0], accomp[0])
+        melody, accomp = gan_network.generate(g_model, sequence_length)
+        print(melody)
+        create_midi(melody, accomp)

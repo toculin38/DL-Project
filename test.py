@@ -45,7 +45,7 @@ def make_a_song():
     stream_player.play()
 
 def analysis_test():
-    midi_file = converter.parse("MyOwnDataset/Memories_of_Dust_NieR_Automata_Piano_cover.mid")
+    midi_file = converter.parse("MyOwnDataset/Octopath_Traveler_-_Alfyns_Theme.mid")
     midi_file = midi_util.to_c_major(midi_file)
 
     print(len(midi_file.parts))
@@ -72,7 +72,7 @@ def analysis_test():
     midi_stream.write('midi', fp='test.mid')
 
 def analysis_by_measures():
-    midi_file = converter.parse("midi_songs/4-4/Vampires_Lullaby.mid")
+    midi_file = converter.parse("midi_songs/4-4/Octopath_Traveler_-_Alfyns_Theme.mid")
     
     # pitchesTable = [pitch.Pitch(ps) for ps in range(17, 88)]
     # print(len(pitchesTable))

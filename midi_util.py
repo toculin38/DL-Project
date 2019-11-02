@@ -4,22 +4,32 @@ import numpy as np
 import music21
 from music21 import converter, instrument, note, chord, interval, pitch, stream
 
-PitchMin = 33 #A1
-PitchMax = 96 #C7
+PitchMin = 21 #A0
+PitchMax = 108 #C8
 PitchSize = PitchMax - PitchMin + 1
 OffsetStep = 0.25
 OffsetMax = 4.0
 
 def element_to_note(element, max_flag):
     if isinstance(element, note.Note):
-        pitch_space = element.pitch.ps
+        pitch = element.pitch
+        pitch_space = pitch.ps
+        # pitch_space = (pitch.ps - PitchMin) % 12 + 1
+        # octave = pitch.implicitOctave + 1
     elif isinstance(element, chord.Chord):
         if max_flag:
-            pitch_space = max([pitch.ps for pitch in element.pitches])
+            pitch = max(element.pitches, key=lambda item: item.ps)
+            pitch_space = pitch.ps
+            # pitch_space = (pitch.ps - PitchMin) % 12 + 1
+            # octave = pitch.implicitOctave + 1
         else:
-            pitch_space = min([pitch.ps for pitch in element.pitches])
+            pitch = min(element.pitches, key=lambda item: item.ps)
+            pitch_space = pitch.ps
+            # pitch_space = (pitch.ps - PitchMin) % 12 + 1
+            # octave = pitch.implicitOctave + 1
     else: #Rest
         pitch_space = 0
+        # octave = 0
 
     if pitch_space < PitchMin or pitch_space > PitchMax:
         pitch_space = 0
@@ -57,32 +67,53 @@ def parse_midi(midi_path, save_path=None):
 
     notes = []
 
+    pre_key_pitch = 0
+    pre_acp_pitch = 0
+
     for measure in zip(melody, accomp):
 
         melody_iter = stream.iterator.OffsetIterator(measure[0].recurse().notesAndRests)
         accomp_iter = stream.iterator.OffsetIterator(measure[1].recurse().notesAndRests)
 
         measure_len = int(OffsetMax / OffsetStep)
-        melody_pitches = np.zeros((measure_len, PitchSize))
-        accomp_pitches = np.zeros((measure_len, PitchSize))
+        melody_pitches = np.zeros((measure_len))
+        accomp_pitches = np.zeros((measure_len))
+
+        melody_pitches[:] = pre_key_pitch
+        accomp_pitches[:] = pre_acp_pitch
 
         for melody_group in melody_iter:
+
             element1 = melody_group[0]
+
+            # if element1.offset % OffsetMax == 0 and isinstance(element1, note.Rest):
+            #     continue
+
             if element1.offset % OffsetStep == 0 and element1.offset < OffsetMax:
                 offset_index = int(element1.offset // OffsetStep)
-                pitch_space = element_to_keys(element1)
-                melody_pitches[offset_index] = pitch_space
-                melody_pitches[offset_index + 1:] = np.zeros(PitchSize)
+                pitch = element_to_note(element1, max_flag=True)
+                melody_pitches[offset_index] = pitch
+                melody_pitches[offset_index + 1:] = pitch
 
         for accomp_group in accomp_iter:
+            
             element2 = accomp_group[0]
+
+            # if element2.offset % OffsetMax == 0 and isinstance(element2, note.Rest):
+            #     continue
+
             if element2.offset % OffsetStep == 0 and element2.offset < OffsetMax:
                 offset_index = int(element2.offset // OffsetStep)
-                pitch_space = element_to_keys(element2)
-                accomp_pitches[offset_index] = pitch_space
-                accomp_pitches[offset_index + 1:] = np.zeros(PitchSize)
+                pitch = element_to_note(element2, max_flag=False)
+                accomp_pitches[offset_index] = pitch
+                accomp_pitches[offset_index + 1:] = pitch
 
-        
+        pre_key_pitch = melody_pitches[-1]
+        pre_acp_pitch = accomp_pitches[-1]
+
+        # print(melody_pitches)
+        # print(accomp_pitches)
+
         measure_notes = np.stack((melody_pitches, accomp_pitches), axis=-1)
 
         notes.extend(measure_notes)

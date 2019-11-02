@@ -4,62 +4,74 @@ from music21 import stream, note, chord, instrument, midi
 import midi_util
 
 PitchMin = midi_util.PitchMin
+PitchMax = midi_util.PitchMax
 PitchSize = midi_util.PitchSize
 
-OffsetSize = int(midi_util.OffsetMax / midi_util.OffsetStep) # Number of offset in a bar
-CycleTimes = 16
-CycleLength = OffsetSize * CycleTimes # Represent a Cycle of music pattern
+PitchTokey = dict()
+PitchTokey[0] = 0
+
+for number, pitch in enumerate(range(PitchMin, PitchMax + 1)):
+    PitchTokey[pitch] = number + 1
+
+KeyToPitch = dict((number, float(pitch)) for pitch, number in PitchTokey.items())
+
+assert len(PitchTokey) == len(KeyToPitch)
+
+KeySize = len(PitchTokey)
 OffsetStep = midi_util.OffsetStep
-OffsetBitSize = int(np.log2(CycleLength))
 
-def prepare_song_sequences(data, modify_num=0):
-    keys_input = []
+# OffsetSize = int(midi_util.OffsetMax / midi_util.OffsetStep) # Number of offset in a bar
+# CycleTimes = 16
+# CycleLength = OffsetSize * CycleTimes # Represent a Cycle of music pattern
+# OffsetBitSize = int(np.log2(CycleLength))
+
+def prepare_song_sequences(data, sequence_length, modify_num=0):
     
-    # create input sequences and the corresponding outputs
+    songs = []
+
     for notes in data:
-        key_sequence = np.array([np.concatenate((note[:,0], note[:,1]), axis=0) for note in notes])
-        keys_input.append(key_sequence)
 
-    return keys_input
+        song_batches = []
 
-def prepare_accomp_sequences(data, sequence_length, modify_num=0):
-    keys_input = []
-    offset_input = []
-    keys2_output = []
-    accomp_input = []
+        keys = normalize_to(np.array([PitchTokey[pitch[0]] for pitch in notes]))
+        acps = normalize_to(np.array([PitchTokey[pitch[1]] for pitch in notes]))
 
-    # create input sequences and the corresponding outputs
-    for notes in data:
-        key_sequence = np.array([note[:,0] for note in notes])
-        key2_sequence = np.array([note[:,1] for note in notes])
-        offset_sequence = np.unpackbits(np.array([[idx % CycleLength] for idx, note in enumerate(notes)], dtype=np.uint8), axis=-1)[:,-OffsetBitSize:]
+        for i in range(0, len(notes), sequence_length):
+            key_seq = keys[i: i + sequence_length]
+            acp_seq = acps[i: i + sequence_length]
 
-        for i in range(sequence_length, len(notes) - sequence_length, 1):
-            key_sequence_in = key_sequence[i:i + sequence_length]
-            key2_sequence_out = key2_sequence[i:i + sequence_length]
-            offset_sequence_in = offset_sequence[i:i + sequence_length]
-            accomp_sequence_in = key2_sequence[i - sequence_length: i]
+            k_dim = key_seq.shape[0]
+            a_dim = acp_seq.shape[0]
 
-            for _ in range(modify_num):
-                key_sequence_in = random_modify(key_sequence_in)
+            fix_key_seq = np.zeros((sequence_length))
+            fix_acp_seq = np.zeros((sequence_length))
 
-            for _ in range(modify_num):
-                key2_sequence_out = random_modify(key2_sequence_out)
+            fix_key_seq[:k_dim] = key_seq[:]
+            fix_acp_seq[:a_dim] = acp_seq[:]
 
-            keys_input.append(key_sequence_in)
-            keys2_output.append(key2_sequence_out)
-            offset_input.append(offset_sequence_in)
-            accomp_input.append(accomp_sequence_in)
+            seq_target = np.ones((1))
 
-    # reshape the input into a format compatible with LSTM layers
-    n_patterns = len(keys_input)
+            if np.all(fix_key_seq == 0):
+                seq_target = 0
 
-    keys_input = np.reshape(keys_input, (n_patterns, sequence_length, PitchSize))
-    offset_input = np.reshape(offset_input, (n_patterns, sequence_length, OffsetBitSize))
-    accomp_input = np.reshape(accomp_input, (n_patterns, sequence_length, PitchSize))
-    keys2_output = np.reshape(keys2_output, (n_patterns, sequence_length, PitchSize))
+            if np.all(fix_acp_seq == 0):
+                seq_target = 0
 
-    return [keys_input, offset_input, accomp_input], [keys2_output]
+            fix_key_seq = np.reshape(fix_key_seq, (sequence_length, 1))
+            fix_acp_seq = np.reshape(fix_acp_seq, (sequence_length, 1))
+
+            song_batches.append((fix_key_seq, fix_acp_seq, seq_target))
+
+        songs.append(song_batches)
+
+    return songs
+
+def normalize_to(data):
+    return data * 2 / (KeySize - 1) - 1 # tanh
+    # return data / (KeySize - 1)
+
+def normalize_back(data):
+    return np.rint((data + 1) * (KeySize - 1) / 2).astype(int)
 
 def to_onehot(array, num_classes):
     return np_utils.to_categorical(array, num_classes=num_classes) 
@@ -96,95 +108,49 @@ def random_pattern_from_data(data):
     acp_pattern = data[2][start]
     return key_pattern, acp_pattern, ofs_pattern
 
-def generate_notes(generator, noise):
-    # key_pattern , prs_pattern, ofs_pattern, acp_pattern = random_pattern(data)
-    key_pattern, acp_pattern, ofs_pattern = random_pattern_from_data(data)
-    melody_output = []
-    accomp_output = []
-    # generate 8 * SequenceLength notes
-    for _ in range(8):
-        # random modify the pattern to prevent looping
-        # copy_key_pattern, copy_prs_pattern = random_modify(key_pattern, prs_pattern)
-        # predict melody
-        key_input = key_pattern
-        key_input = np.reshape(key_input, (1, key_input.shape[0], key_input.shape[1]))
-        ofs_input = np.reshape(ofs_pattern, (1, ofs_pattern.shape[0], ofs_pattern.shape[1]))
-        prediction = melody_model.predict([key_input, ofs_input], verbose=0)
-        key_prediction = np.reshape(prediction[0], (prediction[0].shape[0], prediction[0].shape[1]))
-
-        for index, key_onehot in enumerate(key_prediction):
-            key_onehot = np.round(key_onehot)
-            key_pattern[index] = key_onehot
-            melody_output.append(key_onehot)
-            
-        # adjust offset pattern
-        shift_offset = len(ofs_pattern)
-        new_offset_pattern = np.packbits(ofs_pattern, axis=-1) // (2 ** (8 - OffsetBitSize)) # pack to int
-        new_offset_pattern = (new_offset_pattern + shift_offset) % CycleLength # shift
-        new_offset_pattern = np.unpackbits(new_offset_pattern.astype(np.uint8), axis=-1) # unpack to 8 bits
-        ofs_pattern = new_offset_pattern[:,-OffsetBitSize:] # select indices 1 ~ 7 bits (discard 0) as new pattern
-
-        # predict accomp
-        key_input = key_pattern
-        key_input = np.reshape(key_input, (1, key_input.shape[0], key_input.shape[1]))
-        acp_input = acp_pattern
-        acp_input = np.reshape(acp_input, (1, acp_input.shape[0], acp_input.shape[1]))
-        ofs_input = np.reshape(ofs_pattern, (1, ofs_pattern.shape[0], ofs_pattern.shape[1]))
-        prediction = accomp_model.predict([key_input, ofs_input, acp_input], verbose=0)
-        key_prediction = np.reshape(prediction[0], (prediction[0].shape[0], prediction[0].shape[1]))
-        
-        for index, key_onehot in enumerate(key_prediction):
-            key_onehot = np.round(key_onehot)
-            acp_pattern[index] = key_onehot
-            accomp_output.append(key_onehot)
-
-    return melody_output, accomp_output
-
-
 def create_midi(melody, accomp, midi_name=None, scale_name=None):
+
+    melody = normalize_back(melody)
+    accomp = normalize_back(accomp)
+
     output_part1 = []
     output_part2 = []
+
     offset = 0
 
     # create note and chord objects based on the values generated by the model
-    for onehot in melody:
-        pitches = [i + PitchMin for i, x in enumerate(onehot) if x == 1]
-        pitches_len = len(pitches)
-        if len(output_part1) > 0 and pitches_len == 0:
-            output_part1[-1].duration.quarterLength += OffsetStep
-        else:
-            if pitches_len == 1:
-                new_note = note.Note(pitches[0])
-            elif 1 < pitches_len < 10:
-                new_note = chord.Chord(pitches)
-            else:
-                new_note = note.Rest()
+    for key in melody:
 
-            new_note.offset = offset
-            new_note.duration.quarterLength = OffsetStep
-            new_note.storedInstrument = instrument.Piano()
-            output_part1.append(new_note)
-        # increase offset each iteration so that notes do not stack
+        pitch = KeyToPitch[key]
+        
+        if pitch != 0:
+            new_note = note.Note(pitch)
+        else:
+            new_note = note.Rest()
+
+        new_note.offset = offset
+        new_note.duration.quarterLength = OffsetStep
+        new_note.storedInstrument = instrument.Piano()
+        output_part1.append(new_note)
+
         offset += OffsetStep
 
     offset = 0
-    for onehot in accomp:
-        pitches = [i + PitchMin for i, x in enumerate(onehot) if x == 1]
-        pitches_len = len(pitches)
-        if len(output_part2) > 0 and pitches_len == 0:
-            output_part2[-1].duration.quarterLength += OffsetStep
+
+    for key in accomp:
+
+        pitch = KeyToPitch[key]
+
+        if pitch != 0:
+            new_note = note.Note(pitch)
         else:
-            if pitches_len == 1:
-                new_note = note.Note(pitches[0])
-            elif 1 < pitches_len < 10:
-                new_note = chord.Chord(pitches)
-            else:
-                new_note = note.Rest()
-            new_note.offset = offset
-            new_note.duration.quarterLength = OffsetStep
-            new_note.storedInstrument = instrument.Piano()
-            output_part2.append(new_note)
-        # increase offset each iteration so that notes do not stack
+            new_note = note.Rest()
+
+        new_note.offset = offset
+        new_note.duration.quarterLength = OffsetStep
+        new_note.storedInstrument = instrument.Piano()
+        output_part2.append(new_note)
+
         offset += OffsetStep
 
     p1 = stream.Part(output_part1)
@@ -200,6 +166,3 @@ def create_midi(melody, accomp, midi_name=None, scale_name=None):
         midi_stream.write("midi", fp= midi_name + ".mid")
     else:
         midi_stream.write("midi", fp="test_output.mid")
-
-    # stream_player = midi.realtime.StreamPlayer(midi_stream)
-    # stream_player.play()
